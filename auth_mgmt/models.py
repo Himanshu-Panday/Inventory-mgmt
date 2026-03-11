@@ -82,7 +82,8 @@ class MasterPermission(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="master_permissions")
     master_name = models.CharField(max_length=50, choices=MasterName.choices)
     can_read = models.BooleanField(default=False)
-    can_write = models.BooleanField(default=False)
+    can_create_update = models.BooleanField(default=False)
+    can_delete = models.BooleanField(default=False)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -90,4 +91,7 @@ class MasterPermission(models.Model):
         ordering = ["master_name"]
 
     def __str__(self):
-        return f"{self.user.email} - {self.master_name} (R:{self.can_read}, W:{self.can_write})"
+        return (
+            f"{self.user.email} - {self.master_name} "
+            f"(R:{self.can_read}, CU:{self.can_create_update}, D:{self.can_delete})"
+        )

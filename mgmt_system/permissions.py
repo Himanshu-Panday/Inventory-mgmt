@@ -27,4 +27,9 @@ class MasterAccessPermission(BasePermission):
 
         if request.method in SAFE_METHODS:
             return user_permission.can_read
-        return user_permission.can_write
+
+        if request.method == "DELETE":
+            return user_permission.can_delete
+
+        # POST / PUT / PATCH
+        return user_permission.can_create_update

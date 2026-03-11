@@ -45,7 +45,7 @@ const emptyForm = {
   name: "",
 };
 
-const MasterCrudPanel = ({ tabName, canWrite }) => {
+const MasterCrudPanel = ({ tabName, canCreateUpdate, canDelete }) => {
   const config = CONFIG[tabName];
   const dispatch = useDispatch();
   const { records, loading, submitting, error } = useSelector(config.selector);
@@ -58,6 +58,7 @@ const MasterCrudPanel = ({ tabName, canWrite }) => {
   const [historyRows, setHistoryRows] = useState([]);
   const [historyTitle, setHistoryTitle] = useState("");
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   useEffect(() => {
     dispatch(config.fetchAction());
@@ -93,7 +94,7 @@ const MasterCrudPanel = ({ tabName, canWrite }) => {
     event.preventDefault();
     setFormError("");
 
-    if (!canWrite) {
+    if (!canCreateUpdate) {
       setFormError("You have read-only access for this master.");
       return;
     }
@@ -126,8 +127,10 @@ const MasterCrudPanel = ({ tabName, canWrite }) => {
     }
   };
 
-  const handleDelete = async (id) => {
-    await dispatch(config.removeAction(id));
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    await dispatch(config.removeAction(deleteTarget.id));
+    setDeleteTarget(null);
   };
 
   const openHistoryModal = async (record) => {
@@ -151,7 +154,7 @@ const MasterCrudPanel = ({ tabName, canWrite }) => {
           <h2>{config.title}</h2>
           <p>Manage your {config.title.toLowerCase()} entries.</p>
         </div>
-        <button type="button" className="add-btn" onClick={openCreateModal} disabled={!canWrite}>
+        <button type="button" className="add-btn" onClick={openCreateModal} disabled={!canCreateUpdate}>
           Add
         </button>
       </div>
@@ -190,7 +193,7 @@ const MasterCrudPanel = ({ tabName, canWrite }) => {
                           type="button"
                           className="small-btn"
                           onClick={() => openEditModal(record)}
-                          disabled={!canWrite}
+                          disabled={!canCreateUpdate}
                         >
                           Edit
                         </button>
@@ -204,8 +207,8 @@ const MasterCrudPanel = ({ tabName, canWrite }) => {
                         <button
                           type="button"
                           className="small-btn danger"
-                          onClick={() => handleDelete(record.id)}
-                          disabled={submitting || !canWrite}
+                          onClick={() => setDeleteTarget(record)}
+                          disabled={submitting || !canDelete}
                         >
                           Delete
                         </button>
@@ -283,6 +286,23 @@ const MasterCrudPanel = ({ tabName, canWrite }) => {
             <div className="modal-actions">
               <button type="button" className="secondary-btn" onClick={() => setHistoryOpen(false)}>
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div className="modal-overlay" onClick={() => setDeleteTarget(null)}>
+          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+            <h3>Confirm Delete</h3>
+            <p>Are you sure you want to delete this?</p>
+            <div className="modal-actions">
+              <button type="button" className="secondary-btn" onClick={() => setDeleteTarget(null)}>
+                Cancel
+              </button>
+              <button type="button" className="small-btn danger" onClick={confirmDelete}>
+                Delete
               </button>
             </div>
           </div>

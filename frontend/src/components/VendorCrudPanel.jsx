@@ -21,7 +21,7 @@ const defaultForm = {
   rate: "",
 };
 
-const VendorCrudPanel = ({ canWrite }) => {
+const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
   const dispatch = useDispatch();
   const vendorState = useSelector((state) => state.vendorMaster);
   const itemState = useSelector((state) => state.itemMaster);
@@ -36,6 +36,7 @@ const VendorCrudPanel = ({ canWrite }) => {
   const [historyRows, setHistoryRows] = useState([]);
   const [historyTitle, setHistoryTitle] = useState("");
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   useEffect(() => {
     dispatch(fetchVendors());
@@ -73,7 +74,7 @@ const VendorCrudPanel = ({ canWrite }) => {
     event.preventDefault();
     setFormError("");
 
-    if (!canWrite) {
+    if (!canCreateUpdate) {
       setFormError("You have read-only access for this master.");
       return;
     }
@@ -120,6 +121,12 @@ const VendorCrudPanel = ({ canWrite }) => {
     }
   };
 
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    await dispatch(removeVendor(deleteTarget.id));
+    setDeleteTarget(null);
+  };
+
   return (
     <div className="content-card">
       <div className="section-head">
@@ -127,7 +134,7 @@ const VendorCrudPanel = ({ canWrite }) => {
           <h2>Vendor Master</h2>
           <p>Manage vendor rates mapped to item master.</p>
         </div>
-        <button type="button" className="add-btn" onClick={openCreateModal} disabled={!canWrite}>
+        <button type="button" className="add-btn" onClick={openCreateModal} disabled={!canCreateUpdate}>
           Add
         </button>
       </div>
@@ -172,7 +179,7 @@ const VendorCrudPanel = ({ canWrite }) => {
                           type="button"
                           className="small-btn"
                           onClick={() => openEditModal(record)}
-                          disabled={!canWrite}
+                          disabled={!canCreateUpdate}
                         >
                           Edit
                         </button>
@@ -186,8 +193,8 @@ const VendorCrudPanel = ({ canWrite }) => {
                         <button
                           type="button"
                           className="small-btn danger"
-                          onClick={() => dispatch(removeVendor(record.id))}
-                          disabled={submitting || !canWrite}
+                          onClick={() => setDeleteTarget(record)}
+                          disabled={submitting || !canDelete}
                         >
                           Delete
                         </button>
@@ -297,6 +304,23 @@ const VendorCrudPanel = ({ canWrite }) => {
             <div className="modal-actions">
               <button type="button" className="secondary-btn" onClick={() => setHistoryOpen(false)}>
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div className="modal-overlay" onClick={() => setDeleteTarget(null)}>
+          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+            <h3>Confirm Delete</h3>
+            <p>Are you sure you want to delete this?</p>
+            <div className="modal-actions">
+              <button type="button" className="secondary-btn" onClick={() => setDeleteTarget(null)}>
+                Cancel
+              </button>
+              <button type="button" className="small-btn danger" onClick={confirmDelete}>
+                Delete
               </button>
             </div>
           </div>

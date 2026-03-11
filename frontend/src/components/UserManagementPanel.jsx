@@ -27,7 +27,8 @@ const buildPermissionRows = (masters, userPermissions = []) => {
       master_name: master.master_name,
       label: master.label,
       can_read: permission?.can_read || false,
-      can_write: permission?.can_write || false,
+      can_create_update: permission?.can_create_update || false,
+      can_delete: permission?.can_delete || false,
     };
   });
 };
@@ -70,10 +71,18 @@ const UserManagementPanel = () => {
     () =>
       users.reduce((acc, user) => {
         acc[user.id] = (user.master_permissions || [])
-          .filter((permission) => permission.can_read || permission.can_write)
+          .filter(
+            (permission) =>
+              permission.can_read ||
+              permission.can_create_update ||
+              permission.can_delete,
+          )
           .map((permission) => {
-            if (permission.can_write) return `${permission.master_label} (RW)`;
-            return `${permission.master_label} (R)`;
+            const flags = [];
+            if (permission.can_read) flags.push("R");
+            if (permission.can_create_update) flags.push("CU");
+            if (permission.can_delete) flags.push("D");
+            return `${permission.master_label} (${flags.join("/") || "-"})`;
           })
           .join(", ");
         return acc;
@@ -116,10 +125,13 @@ const UserManagementPanel = () => {
       prev.map((permission) => {
         if (permission.master_name !== masterName) return permission;
         if (key === "can_read" && !value) {
-          return { ...permission, can_read: false, can_write: false };
+          return { ...permission, can_read: false, can_create_update: false, can_delete: false };
         }
-        if (key === "can_write" && value) {
-          return { ...permission, can_write: true, can_read: true };
+        if (key === "can_create_update" && value) {
+          return { ...permission, can_create_update: true, can_read: true };
+        }
+        if (key === "can_delete" && value) {
+          return { ...permission, can_delete: true, can_read: true };
         }
         return { ...permission, [key]: value };
       }),
@@ -135,7 +147,8 @@ const UserManagementPanel = () => {
       const permissionPayload = permissionRows.map((permission) => ({
         master_name: permission.master_name,
         can_read: permission.can_read,
-        can_write: permission.can_write,
+        can_create_update: permission.can_create_update,
+        can_delete: permission.can_delete,
       }));
 
       const payload = {
@@ -306,26 +319,40 @@ const UserManagementPanel = () => {
                 {permissionRows.map((permission) => (
                   <div key={permission.master_name} className="permission-row">
                     <span>{permission.label}</span>
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={permission.can_read}
-                        onChange={(event) =>
-                          setPermissionValue(permission.master_name, "can_read", event.target.checked)
-                        }
-                      />
-                      Read
-                    </label>
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={permission.can_write}
-                        onChange={(event) =>
-                          setPermissionValue(permission.master_name, "can_write", event.target.checked)
-                        }
-                      />
-                      Write
-                    </label>
+                    <button
+                      type="button"
+                      className={`perm-icon ${permission.can_read ? "active" : ""}`}
+                      title="Read"
+                      onClick={() =>
+                        setPermissionValue(permission.master_name, "can_read", !permission.can_read)
+                      }
+                    >
+                      R
+                    </button>
+                    <button
+                      type="button"
+                      className={`perm-icon ${permission.can_create_update ? "active" : ""}`}
+                      title="Create/Update"
+                      onClick={() =>
+                        setPermissionValue(
+                          permission.master_name,
+                          "can_create_update",
+                          !permission.can_create_update,
+                        )
+                      }
+                    >
+                      CU
+                    </button>
+                    <button
+                      type="button"
+                      className={`perm-icon ${permission.can_delete ? "active" : ""}`}
+                      title="Delete"
+                      onClick={() =>
+                        setPermissionValue(permission.master_name, "can_delete", !permission.can_delete)
+                      }
+                    >
+                      D
+                    </button>
                   </div>
                 ))}
               </div>

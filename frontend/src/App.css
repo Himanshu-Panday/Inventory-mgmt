@@ -151,6 +151,17 @@ button:disabled {
   color: #0f2f55;
 }
 
+.topbar-logo {
+  display: flex;
+  align-items: center;
+}
+
+.topbar-logo img {
+  height: 42px;
+  width: auto;
+  object-fit: contain;
+}
+
 .hamburger {
   width: 40px;
   height: 40px;
@@ -345,7 +356,7 @@ button:disabled {
 
 .permission-row {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 1fr auto auto auto;
   gap: 0.65rem;
   align-items: center;
   padding: 0.35rem 0;
@@ -356,6 +367,23 @@ button:disabled {
   gap: 0.4rem;
   align-items: center;
   font-weight: 500;
+}
+
+.perm-icon {
+  margin: 0;
+  width: 36px;
+  height: 32px;
+  padding: 0;
+  border-radius: 8px;
+  background: #e8eff9;
+  color: #1f4570;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.perm-icon.active {
+  background: #1672ff;
+  color: #ffffff;
 }
 
 .sidebar-backdrop {

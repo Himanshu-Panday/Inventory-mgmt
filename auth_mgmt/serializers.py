@@ -10,7 +10,15 @@ class MasterPermissionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = MasterPermission
-        fields = ["id", "master_name", "master_label", "can_read", "can_write", "updated_at"]
+        fields = [
+            "id",
+            "master_name",
+            "master_label",
+            "can_read",
+            "can_create_update",
+            "can_delete",
+            "updated_at",
+        ]
         read_only_fields = ["id", "master_label", "updated_at"]
 
 
@@ -87,7 +95,8 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
                 master_name=permission_data["master_name"],
                 defaults={
                     "can_read": permission_data["can_read"],
-                    "can_write": permission_data["can_write"],
+                    "can_create_update": permission_data["can_create_update"],
+                    "can_delete": permission_data["can_delete"],
                 },
             )
         return user
@@ -119,7 +128,8 @@ class AdminUserUpdateSerializer(serializers.ModelSerializer):
                     user=instance,
                     master_name=permission_data["master_name"],
                     can_read=permission_data["can_read"],
-                    can_write=permission_data["can_write"],
+                    can_create_update=permission_data["can_create_update"],
+                    can_delete=permission_data["can_delete"],
                 )
         return instance
 

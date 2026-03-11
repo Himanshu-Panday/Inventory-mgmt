@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import MasterCrudPanel from "../components/MasterCrudPanel";
-import UserManagementPanel from "../components/UserManagementPanel";
-import VendorCrudPanel from "../components/VendorCrudPanel";
 import { useAuth } from "../components/AuthProvider";
+import rudraLogo from "../assets/RUDRA_LOGO.png";
+
+const MasterCrudPanel = lazy(() => import("../components/MasterCrudPanel"));
+const VendorCrudPanel = lazy(() => import("../components/VendorCrudPanel"));
+const UserManagementPanel = lazy(() => import("../components/UserManagementPanel"));
 
 const MASTER_TABS = [
   { key: "vendor_master", label: "Vendor-Master" },
@@ -52,18 +54,37 @@ const HomePage = () => {
 
   const renderActiveModule = () => {
     const tabMeta = MASTER_TABS.find((tab) => tab.label === activeTab);
-    const canWrite = user?.role === "admin" || Boolean(permissionMap.get(tabMeta?.key)?.can_write);
+    const canCreateUpdate =
+      user?.role === "admin" || Boolean(permissionMap.get(tabMeta?.key)?.can_create_update);
+    const canDelete =
+      user?.role === "admin" || Boolean(permissionMap.get(tabMeta?.key)?.can_delete);
 
     if (activeTab === "User Management" && user?.role === "admin") {
-      return <UserManagementPanel />;
+      return (
+        <Suspense fallback={<div className="content-card">Loading...</div>}>
+          <UserManagementPanel />
+        </Suspense>
+      );
     }
 
     if (activeTab === "Vendor-Master") {
-      return <VendorCrudPanel canWrite={canWrite} />;
+      return (
+        <Suspense fallback={<div className="content-card">Loading...</div>}>
+          <VendorCrudPanel canCreateUpdate={canCreateUpdate} canDelete={canDelete} />
+        </Suspense>
+      );
     }
 
     if (activeTab === "Item-Master" || activeTab === "Size-Master") {
-      return <MasterCrudPanel tabName={activeTab} canWrite={canWrite} />;
+      return (
+        <Suspense fallback={<div className="content-card">Loading...</div>}>
+          <MasterCrudPanel
+            tabName={activeTab}
+            canCreateUpdate={canCreateUpdate}
+            canDelete={canDelete}
+          />
+        </Suspense>
+      );
     }
 
     if (!activeTab) {
@@ -122,7 +143,9 @@ const HomePage = () => {
             <span />
           </button>
 
-          <h1>Inventory Management System</h1>
+          <div className="topbar-logo">
+            <img src={rudraLogo} alt="Rudra Jewels" />
+          </div>
 
           <div className="profile-wrap">
             <button
