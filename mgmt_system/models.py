@@ -61,117 +61,98 @@ class Vendor_Model(models.Model):
         return self.vendor_name
 
 
-class SizeModelHistory(models.Model):
-    ACTION_CHOICES = [
-        ("create", "Create"),
-        ("update", "Update"),
-        ("delete", "Delete"),
-    ]
-
-    record_id = models.IntegerField()
-    size_model = models.ForeignKey(
-        Size_Model,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="history_entries",
-    )
-    name = models.CharField(max_length=255)
-    date = models.DateTimeField()
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="size_model_history_created",
-    )
-    modified_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="size_model_history_modified",
-    )
-    modified_at = models.DateTimeField(auto_now_add=True)
-    action = models.CharField(max_length=10, choices=ACTION_CHOICES)
-
-    class Meta:
-        ordering = ["-modified_at"]
-
-
-class ItemModelHistory(models.Model):
-    ACTION_CHOICES = [
-        ("create", "Create"),
-        ("update", "Update"),
-        ("delete", "Delete"),
-    ]
-
-    record_id = models.IntegerField()
-    item_model = models.ForeignKey(
-        Item_Model,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="history_entries",
-    )
-    name = models.CharField(max_length=255)
-    date = models.DateTimeField()
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="item_model_history_created",
-    )
-    modified_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="item_model_history_modified",
-    )
-    modified_at = models.DateTimeField(auto_now_add=True)
-    action = models.CharField(max_length=10, choices=ACTION_CHOICES)
-
-    class Meta:
-        ordering = ["-modified_at"]
-
-
-class VendorModelHistory(models.Model):
-    ACTION_CHOICES = [
-        ("create", "Create"),
-        ("update", "Update"),
-        ("delete", "Delete"),
-    ]
-
-    record_id = models.IntegerField()
-    vendor_model = models.ForeignKey(
+class WaxReceive(models.Model):
+    vendor = models.ForeignKey(
         Vendor_Model,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="history_entries",
+        on_delete=models.PROTECT,
+        related_name="wax_receives",
     )
-    vendor_name = models.CharField(max_length=255)
-    item_name_label = models.CharField(max_length=255)
-    rate = models.IntegerField()
-    date_time = models.DateTimeField()
+    date_time = models.DateTimeField(auto_now_add=True)
+    weight = models.DecimalField(max_digits=12, decimal_places=3, default=0)
+    quantity = models.IntegerField(default=0)
+    total_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="vendor_model_history_created",
+        related_name="wax_receive_created",
     )
-    modified_by = models.ForeignKey(
+
+    class Meta:
+        ordering = ["id"]
+        verbose_name = "Wax Receive"
+        verbose_name_plural = "Wax Receives"
+
+    def __str__(self):
+        return f"Wax Receive {self.id}"
+
+    def recalc_totals(self):
+        totals = self.lines.aggregate(
+            total_weight=models.Sum("in_weight"),
+            total_quantity=models.Sum("in_quantity"),
+            total_amount=models.Sum("amount"),
+        )
+        self.weight = totals["total_weight"] or 0
+        self.quantity = totals["total_quantity"] or 0
+        self.total_amount = totals["total_amount"] or 0
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # Child lines may not exist yet. If they do, recompute.
+        self.recalc_totals()
+        super().save(update_fields=["weight", "quantity", "total_amount"])
+
+
+class WaxReceiveLine(models.Model):
+    wax_receive = models.ForeignKey(
+        WaxReceive,
+        on_delete=models.CASCADE,
+        related_name="lines",
+    )
+    item = models.ForeignKey(Item_Model, on_delete=models.PROTECT, related_name="wax_receive_lines")
+    size = models.ForeignKey(Size_Model, on_delete=models.PROTECT, related_name="wax_receive_lines")
+    in_weight = models.DecimalField(max_digits=12, decimal_places=3)
+    in_quantity = models.IntegerField()
+    rate = models.DecimalField(max_digits=12, decimal_places=2)
+    amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+
+    class Meta:
+        ordering = ["id"]
+
+    def save(self, *args, **kwargs):
+        self.amount = (self.in_weight or 0) * (self.rate or 0)
+        super().save(*args, **kwargs)
+        self.wax_receive.recalc_totals()
+        self.wax_receive.save(update_fields=["weight", "quantity", "total_amount"])
+
+    def delete(self, *args, **kwargs):
+        wax_receive = self.wax_receive
+        super().delete(*args, **kwargs)
+        wax_receive.recalc_totals()
+        wax_receive.save(update_fields=["weight", "quantity", "total_amount"])
+
+
+class IssueMaster(models.Model):
+    item = models.ForeignKey(Item_Model, on_delete=models.PROTECT, related_name="issues")
+    size = models.ForeignKey(Size_Model, on_delete=models.PROTECT, related_name="issues")
+    out_weight = models.DecimalField(max_digits=12, decimal_places=3)
+    out_quantity = models.IntegerField()
+    description = models.TextField(blank=True)
+    date_time = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="vendor_model_history_modified",
+        related_name="issue_master_created",
     )
-    modified_at = models.DateTimeField(auto_now_add=True)
-    action = models.CharField(max_length=10, choices=ACTION_CHOICES)
 
     class Meta:
-        ordering = ["-modified_at"]
+        ordering = ["id"]
+        verbose_name = "Issue Master"
+        verbose_name_plural = "Issue Masters"
+
+    def __str__(self):
+        return f"Issue {self.id}"
+

@@ -262,6 +262,14 @@ button:disabled {
   font-size: 0.9rem;
 }
 
+.clickable-row {
+  cursor: pointer;
+}
+
+.clickable-row:hover {
+  background: #f2f7ff;
+}
+
 .empty-row {
   text-align: center;
   color: #5b7592;
@@ -312,6 +320,7 @@ button:disabled {
   margin: 0 0 0.8rem;
   color: #0f2f55;
 }
+
 
 .modal-actions {
   margin-top: 0.45rem;
@@ -368,6 +377,27 @@ button:disabled {
   align-items: center;
   font-weight: 500;
 }
+
+.item-select {
+  min-width: 220px;
+  border: 1px solid #c7d6e5;
+  border-radius: 10px;
+  padding: 0.45rem 0.7rem;
+  background: #ffffff;
+}
+
+.wax-form {
+  margin-top: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.item-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+
 
 .perm-icon {
   margin: 0;

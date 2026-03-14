@@ -2,11 +2,11 @@ from django.contrib import admin
 
 from .models import (
     Item_Model,
-    ItemModelHistory,
     Size_Model,
-    SizeModelHistory,
     Vendor_Model,
-    VendorModelHistory,
+    WaxReceive,
+    WaxReceiveLine,
+    IssueMaster,
 )
 
 
@@ -31,19 +31,25 @@ class VendorModelAdmin(admin.ModelAdmin):
     list_filter = ["date_time"]
 
 
-@admin.register(SizeModelHistory)
-class SizeModelHistoryAdmin(admin.ModelAdmin):
-    list_display = ["id", "record_id", "name", "action", "modified_by", "modified_at"]
-    list_filter = ["action", "modified_at"]
+class WaxReceiveLineInline(admin.TabularInline):
+    model = WaxReceiveLine
+    extra = 0
 
 
-@admin.register(ItemModelHistory)
-class ItemModelHistoryAdmin(admin.ModelAdmin):
-    list_display = ["id", "record_id", "name", "action", "modified_by", "modified_at"]
-    list_filter = ["action", "modified_at"]
+@admin.register(WaxReceive)
+class WaxReceiveAdmin(admin.ModelAdmin):
+    list_display = ["id", "vendor", "date_time", "weight", "quantity", "total_amount", "created_by"]
+    list_filter = ["date_time"]
+    inlines = [WaxReceiveLineInline]
 
 
-@admin.register(VendorModelHistory)
-class VendorModelHistoryAdmin(admin.ModelAdmin):
-    list_display = ["id", "record_id", "vendor_name", "action", "modified_by", "modified_at"]
-    list_filter = ["action", "modified_at"]
+@admin.register(WaxReceiveLine)
+class WaxReceiveLineAdmin(admin.ModelAdmin):
+    list_display = ["id", "wax_receive", "item", "size", "in_weight", "in_quantity", "rate", "amount"]
+    list_filter = ["wax_receive", "item", "size"]
+
+
+@admin.register(IssueMaster)
+class IssueMasterAdmin(admin.ModelAdmin):
+    list_display = ["id", "item", "size", "out_weight", "out_quantity", "date_time", "created_by"]
+    list_filter = ["date_time"]

@@ -275,8 +275,8 @@ const MasterCrudPanel = ({ tabName, canCreateUpdate, canDelete }) => {
                     {historyRows.map((row) => (
                       <tr key={row.id}>
                         <td>{row.action}</td>
-                        <td>{row.modified_by_email || "-"}</td>
-                        <td>{formatDate(row.modified_at)}</td>
+                        <td>{row.actor_name || row.actor_email || "-"}</td>
+                        <td>{formatDate(row.timestamp)}</td>
                       </tr>
                     ))}
                   </tbody>

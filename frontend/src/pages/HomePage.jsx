@@ -7,6 +7,8 @@ import rudraLogo from "../assets/RUDRA_LOGO.png";
 const MasterCrudPanel = lazy(() => import("../components/MasterCrudPanel"));
 const VendorCrudPanel = lazy(() => import("../components/VendorCrudPanel"));
 const UserManagementPanel = lazy(() => import("../components/UserManagementPanel"));
+const WaxReceivePanel = lazy(() => import("../components/WaxReceivePanel"));
+const IssueMasterPanel = lazy(() => import("../components/IssueMasterPanel"));
 
 const MASTER_TABS = [
   { key: "vendor_master", label: "Vendor-Master" },
@@ -83,6 +85,22 @@ const HomePage = () => {
             canCreateUpdate={canCreateUpdate}
             canDelete={canDelete}
           />
+        </Suspense>
+      );
+    }
+
+    if (activeTab === "Wax-Receive") {
+      return (
+        <Suspense fallback={<div className="content-card">Loading...</div>}>
+          <WaxReceivePanel canCreateUpdate={canCreateUpdate} />
+        </Suspense>
+      );
+    }
+
+    if (activeTab === "Issue-Master") {
+      return (
+        <Suspense fallback={<div className="content-card">Loading...</div>}>
+          <IssueMasterPanel canCreateUpdate={canCreateUpdate} />
         </Suspense>
       );
     }

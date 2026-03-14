@@ -7,6 +7,7 @@ import "./App.css";
 
 const HomePage = lazy(() => import("./pages/HomePage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
+const WaxReceiveDetailPage = lazy(() => import("./pages/WaxReceiveDetailPage"));
 
 function App() {
   return (
@@ -19,6 +20,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <HomePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/wax-receives/:id"
+            element={
+              <ProtectedRoute>
+                <WaxReceiveDetailPage />
               </ProtectedRoute>
             }
           />

@@ -2,11 +2,11 @@ from rest_framework import serializers
 
 from .models import (
     Item_Model,
-    ItemModelHistory,
     Size_Model,
-    SizeModelHistory,
     Vendor_Model,
-    VendorModelHistory,
+    WaxReceive,
+    WaxReceiveLine,
+    IssueMaster,
 )
 
 
@@ -83,57 +83,78 @@ class VendorModelSerializer(serializers.ModelSerializer):
         ]
 
 
-class SizeModelHistorySerializer(serializers.ModelSerializer):
-    modified_by_email = serializers.EmailField(source="modified_by.email", read_only=True)
-    created_by_email = serializers.EmailField(source="created_by.email", read_only=True)
+class AuditLogSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    action = serializers.CharField()
+    timestamp = serializers.DateTimeField()
+    actor_name = serializers.CharField(allow_null=True)
+    actor_email = serializers.CharField(allow_null=True)
+
+
+class WaxReceiveLineSerializer(serializers.ModelSerializer):
+    item_name = serializers.CharField(source="item.name", read_only=True)
+    size_name = serializers.CharField(source="size.name", read_only=True)
 
     class Meta:
-        model = SizeModelHistory
+        model = WaxReceiveLine
         fields = [
             "id",
-            "record_id",
-            "name",
-            "date",
-            "created_by_email",
-            "modified_by_email",
-            "modified_at",
-            "action",
-        ]
-
-
-class ItemModelHistorySerializer(serializers.ModelSerializer):
-    modified_by_email = serializers.EmailField(source="modified_by.email", read_only=True)
-    created_by_email = serializers.EmailField(source="created_by.email", read_only=True)
-
-    class Meta:
-        model = ItemModelHistory
-        fields = [
-            "id",
-            "record_id",
-            "name",
-            "date",
-            "created_by_email",
-            "modified_by_email",
-            "modified_at",
-            "action",
-        ]
-
-
-class VendorModelHistorySerializer(serializers.ModelSerializer):
-    modified_by_email = serializers.EmailField(source="modified_by.email", read_only=True)
-    created_by_email = serializers.EmailField(source="created_by.email", read_only=True)
-
-    class Meta:
-        model = VendorModelHistory
-        fields = [
-            "id",
-            "record_id",
-            "vendor_name",
-            "item_name_label",
+            "item",
+            "item_name",
+            "size",
+            "size_name",
+            "in_weight",
+            "in_quantity",
             "rate",
-            "date_time",
-            "created_by_email",
-            "modified_by_email",
-            "modified_at",
-            "action",
+            "amount",
         ]
+        read_only_fields = ["id", "item_name", "size_name", "rate", "amount"]
+
+
+class WaxReceiveSerializer(serializers.ModelSerializer):
+    vendor_name = serializers.CharField(source="vendor.vendor_name", read_only=True)
+
+    class Meta:
+        model = WaxReceive
+        fields = [
+            "id",
+            "vendor",
+            "vendor_name",
+            "date_time",
+            "weight",
+            "quantity",
+            "total_amount",
+            "created_by",
+        ]
+        read_only_fields = [
+            "id",
+            "vendor_name",
+            "date_time",
+            "weight",
+            "quantity",
+            "total_amount",
+            "created_by",
+        ]
+
+
+class IssueMasterSerializer(serializers.ModelSerializer):
+    item_name = serializers.CharField(source="item.name", read_only=True)
+    size_name = serializers.CharField(source="size.name", read_only=True)
+    created_by_email = serializers.EmailField(source="created_by.email", read_only=True)
+
+    class Meta:
+        model = IssueMaster
+        fields = [
+            "id",
+            "item",
+            "item_name",
+            "size",
+            "size_name",
+            "out_weight",
+            "out_quantity",
+            "description",
+            "date_time",
+            "created_by",
+            "created_by_email",
+        ]
+        read_only_fields = ["id", "item_name", "size_name", "date_time", "created_by", "created_by_email"]

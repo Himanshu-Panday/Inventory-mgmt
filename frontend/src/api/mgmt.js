@@ -152,3 +152,33 @@ export const listVendorModelHistory = async (id) => {
   const { data } = await mgmtApi.get(`/vendor-models/${id}/history/`);
   return data;
 };
+
+export const listWaxReceives = async () => {
+  const { data } = await mgmtApi.get("/wax-receives/");
+  return data;
+};
+
+export const createWaxReceive = async (payload) => {
+  const { data } = await mgmtApi.post("/wax-receives/", payload);
+  return data;
+};
+
+export const listWaxReceiveLines = async (waxReceiveId) => {
+  const { data } = await mgmtApi.get(`/wax-receives/${waxReceiveId}/lines/`);
+  return data;
+};
+
+export const createWaxReceiveLine = async ({ waxReceiveId, payload }) => {
+  const { data } = await mgmtApi.post(`/wax-receives/${waxReceiveId}/lines/`, payload);
+  return data;
+};
+
+export const listIssueMasters = async () => {
+  const { data } = await mgmtApi.get("/issue-masters/");
+  return data;
+};
+
+export const createIssueMaster = async (payload) => {
+  const { data } = await mgmtApi.post("/issue-masters/", payload);
+  return data;
+};

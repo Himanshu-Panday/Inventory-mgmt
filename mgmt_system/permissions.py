@@ -4,6 +4,8 @@ MASTER_BY_BASENAME = {
     "item-model": "item_master",
     "size-model": "size_master",
     "vendor-model": "vendor_master",
+    "wax-receive": "wax_receive",
+    "issue-master": "issue_master",
 }
 
 
