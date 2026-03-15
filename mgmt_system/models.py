@@ -35,8 +35,32 @@ class Item_Model(BaseMasterModel):
         verbose_name_plural = "Item Models"
 
 
+class VendorList_Model(models.Model):
+    vendor_name = models.CharField(max_length=255, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="vendor_list_created",
+    )
+
+    class Meta:
+        ordering = ["vendor_name"]
+        verbose_name = "Vendor List"
+        verbose_name_plural = "Vendor Lists"
+
+    def __str__(self):
+        return self.vendor_name
+
+
 class Vendor_Model(models.Model):
-    vendor_name = models.CharField(max_length=255)
+    vendor = models.ForeignKey(
+        VendorList_Model,
+        on_delete=models.PROTECT,
+        related_name="vendor_rates",
+    )
     item_name = models.ForeignKey(
         Item_Model,
         on_delete=models.PROTECT,
@@ -58,12 +82,12 @@ class Vendor_Model(models.Model):
         verbose_name_plural = "Vendor Models"
 
     def __str__(self):
-        return self.vendor_name
+        return f"{self.vendor.vendor_name} - {self.item_name.name}"
 
 
 class WaxReceive(models.Model):
     vendor = models.ForeignKey(
-        Vendor_Model,
+        VendorList_Model,
         on_delete=models.PROTECT,
         related_name="wax_receives",
     )
@@ -156,3 +180,45 @@ class IssueMaster(models.Model):
     def __str__(self):
         return f"Issue {self.id}"
 
+
+class StockManagement_Model(models.Model):
+    item = models.ForeignKey(Item_Model, on_delete=models.PROTECT, related_name="stock_rows")
+    size = models.ForeignKey(Size_Model, on_delete=models.PROTECT, related_name="stock_rows")
+    in_weight = models.DecimalField(max_digits=12, decimal_places=3, default=0)
+    in_quantity = models.IntegerField(default=0)
+    out_weight = models.DecimalField(max_digits=12, decimal_places=3, default=0)
+    out_quantity = models.IntegerField(default=0)
+    balance_weight = models.DecimalField(max_digits=12, decimal_places=3, default=0)
+    balance_quantity = models.IntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["item__name", "size__name"]
+        unique_together = ("item", "size")
+        verbose_name = "Stock Management"
+        verbose_name_plural = "Stock Management"
+
+    def __str__(self):
+        return f"{self.item.name} - {self.size.name}"
+
+
+class DeletedRecord(models.Model):
+    model_name = models.CharField(max_length=50)
+    object_id = models.CharField(max_length=50)
+    payload = models.JSONField()
+    deleted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="deleted_records",
+    )
+    deleted_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-deleted_at"]
+        verbose_name = "Deleted Record"
+        verbose_name_plural = "Deleted Records"
+
+    def __str__(self):
+        return f"{self.model_name} #{self.object_id}"

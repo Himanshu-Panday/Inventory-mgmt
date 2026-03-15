@@ -4,9 +4,12 @@ from .models import (
     Item_Model,
     Size_Model,
     Vendor_Model,
+    VendorList_Model,
     WaxReceive,
     WaxReceiveLine,
     IssueMaster,
+    StockManagement_Model,
+    DeletedRecord,
 )
 
 
@@ -26,9 +29,15 @@ class ItemModelAdmin(admin.ModelAdmin):
 
 @admin.register(Vendor_Model)
 class VendorModelAdmin(admin.ModelAdmin):
-    list_display = ["id", "vendor_name", "item_name", "rate", "date_time", "created_by"]
-    search_fields = ["vendor_name", "item_name__name"]
+    list_display = ["id", "vendor", "item_name", "rate", "date_time", "created_by"]
+    search_fields = ["vendor__vendor_name", "item_name__name"]
     list_filter = ["date_time"]
+
+
+@admin.register(VendorList_Model)
+class VendorListAdmin(admin.ModelAdmin):
+    list_display = ["id", "vendor_name", "created_at", "created_by"]
+    search_fields = ["vendor_name"]
 
 
 class WaxReceiveLineInline(admin.TabularInline):
@@ -53,3 +62,27 @@ class WaxReceiveLineAdmin(admin.ModelAdmin):
 class IssueMasterAdmin(admin.ModelAdmin):
     list_display = ["id", "item", "size", "out_weight", "out_quantity", "date_time", "created_by"]
     list_filter = ["date_time"]
+
+
+@admin.register(StockManagement_Model)
+class StockManagementAdmin(admin.ModelAdmin):
+    list_display = [
+        "id",
+        "item",
+        "size",
+        "in_weight",
+        "in_quantity",
+        "out_weight",
+        "out_quantity",
+        "balance_weight",
+        "balance_quantity",
+        "updated_at",
+    ]
+    list_filter = ["item", "size"]
+
+
+@admin.register(DeletedRecord)
+class DeletedRecordAdmin(admin.ModelAdmin):
+    list_display = ["id", "model_name", "object_id", "deleted_at", "deleted_by"]
+    list_filter = ["model_name", "deleted_at"]
+    search_fields = ["object_id", "model_name"]

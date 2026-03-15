@@ -9,6 +9,8 @@ const VendorCrudPanel = lazy(() => import("../components/VendorCrudPanel"));
 const UserManagementPanel = lazy(() => import("../components/UserManagementPanel"));
 const WaxReceivePanel = lazy(() => import("../components/WaxReceivePanel"));
 const IssueMasterPanel = lazy(() => import("../components/IssueMasterPanel"));
+const StockManagementPanel = lazy(() => import("../components/StockManagementPanel"));
+const DeletedRecordsPanel = lazy(() => import("../components/DeletedRecordsPanel"));
 
 const MASTER_TABS = [
   { key: "vendor_master", label: "Vendor-Master" },
@@ -36,7 +38,7 @@ const HomePage = () => {
   const navItems = useMemo(() => {
     if (!user) return [];
     if (user.role === "admin") {
-      return [...MASTER_TABS.map((item) => item.label), "User Management"];
+      return [...MASTER_TABS.map((item) => item.label), "User Management", "Deleted Records"];
     }
     return MASTER_TABS.filter((tab) => permissionMap.get(tab.key)?.can_read).map((tab) => tab.label);
   }, [permissionMap, user]);
@@ -63,7 +65,7 @@ const HomePage = () => {
 
     if (activeTab === "User Management" && user?.role === "admin") {
       return (
-        <Suspense fallback={<div className="content-card">Loading...</div>}>
+        <Suspense fallback={<div className="content-card"><div className="inline-loader" /></div>}>
           <UserManagementPanel />
         </Suspense>
       );
@@ -71,7 +73,7 @@ const HomePage = () => {
 
     if (activeTab === "Vendor-Master") {
       return (
-        <Suspense fallback={<div className="content-card">Loading...</div>}>
+        <Suspense fallback={<div className="content-card"><div className="inline-loader" /></div>}>
           <VendorCrudPanel canCreateUpdate={canCreateUpdate} canDelete={canDelete} />
         </Suspense>
       );
@@ -79,7 +81,7 @@ const HomePage = () => {
 
     if (activeTab === "Item-Master" || activeTab === "Size-Master") {
       return (
-        <Suspense fallback={<div className="content-card">Loading...</div>}>
+        <Suspense fallback={<div className="content-card"><div className="inline-loader" /></div>}>
           <MasterCrudPanel
             tabName={activeTab}
             canCreateUpdate={canCreateUpdate}
@@ -91,7 +93,7 @@ const HomePage = () => {
 
     if (activeTab === "Wax-Receive") {
       return (
-        <Suspense fallback={<div className="content-card">Loading...</div>}>
+        <Suspense fallback={<div className="content-card"><div className="inline-loader" /></div>}>
           <WaxReceivePanel canCreateUpdate={canCreateUpdate} />
         </Suspense>
       );
@@ -99,8 +101,24 @@ const HomePage = () => {
 
     if (activeTab === "Issue-Master") {
       return (
-        <Suspense fallback={<div className="content-card">Loading...</div>}>
+        <Suspense fallback={<div className="content-card"><div className="inline-loader" /></div>}>
           <IssueMasterPanel canCreateUpdate={canCreateUpdate} />
+        </Suspense>
+      );
+    }
+
+    if (activeTab === "StockManagement") {
+      return (
+        <Suspense fallback={<div className="content-card"><div className="inline-loader" /></div>}>
+          <StockManagementPanel />
+        </Suspense>
+      );
+    }
+
+    if (activeTab === "Deleted Records" && user?.role === "admin") {
+      return (
+        <Suspense fallback={<div className="content-card"><div className="inline-loader" /></div>}>
+          <DeletedRecordsPanel />
         </Suspense>
       );
     }

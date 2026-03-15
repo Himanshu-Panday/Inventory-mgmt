@@ -1,22 +1,20 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 
 import {
-  createVendorModel,
-  deleteVendorModel,
-  listVendorModels,
-  updateVendorModel,
+  createVendorList,
+  deleteVendorList,
+  listVendorLists,
+  updateVendorList,
 } from "../api/mgmt";
 
 const getErrorMessage = (error) =>
   error?.response?.data?.detail ||
   error?.response?.data?.vendor_name?.[0] ||
-  error?.response?.data?.item_name?.[0] ||
-  error?.response?.data?.rate?.[0] ||
   "Request failed";
 
 export const fetchVendors = createAsyncThunk("vendorMaster/fetchAll", async (_, thunkApi) => {
   try {
-    return await listVendorModels();
+    return await listVendorLists();
   } catch (error) {
     return thunkApi.rejectWithValue(getErrorMessage(error));
   }
@@ -24,7 +22,7 @@ export const fetchVendors = createAsyncThunk("vendorMaster/fetchAll", async (_, 
 
 export const addVendor = createAsyncThunk("vendorMaster/add", async (payload, thunkApi) => {
   try {
-    return await createVendorModel(payload);
+    return await createVendorList(payload);
   } catch (error) {
     return thunkApi.rejectWithValue(getErrorMessage(error));
   }
@@ -34,7 +32,7 @@ export const editVendor = createAsyncThunk(
   "vendorMaster/edit",
   async ({ id, payload }, thunkApi) => {
     try {
-      return await updateVendorModel({ id, payload });
+      return await updateVendorList({ id, payload });
     } catch (error) {
       return thunkApi.rejectWithValue(getErrorMessage(error));
     }
@@ -43,7 +41,7 @@ export const editVendor = createAsyncThunk(
 
 export const removeVendor = createAsyncThunk("vendorMaster/remove", async (id, thunkApi) => {
   try {
-    await deleteVendorModel(id);
+    await deleteVendorList(id);
     return id;
   } catch (error) {
     return thunkApi.rejectWithValue(getErrorMessage(error));

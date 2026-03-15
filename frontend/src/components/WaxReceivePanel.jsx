@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import { listVendorModels } from "../api/mgmt";
+import { listVendorLists, listWaxReceiveHistory } from "../api/mgmt";
 import { useNavigate } from "react-router-dom";
-import { addWaxReceive, fetchWaxReceives } from "../store/waxReceiveSlice";
+import { addWaxReceive, editWaxReceive, fetchWaxReceives, removeWaxReceive } from "../store/waxReceiveSlice";
 
 const formatDateTime = (value) => {
   if (!value) return "-";
@@ -16,22 +16,37 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
   const { records, loading, submitting, error } = useSelector((state) => state.waxReceive);
   const [vendors, setVendors] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingRecord, setEditingRecord] = useState(null);
   const [vendorId, setVendorId] = useState("");
   const [formError, setFormError] = useState("");
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyRows, setHistoryRows] = useState([]);
+  const [historyTitle, setHistoryTitle] = useState("");
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   useEffect(() => {
     dispatch(fetchWaxReceives());
-    listVendorModels().then(setVendors).catch(() => setVendors([]));
+    listVendorLists().then(setVendors).catch(() => setVendors([]));
   }, [dispatch]);
 
   const openModal = () => {
+    setEditingRecord(null);
     setVendorId("");
+    setFormError("");
+    setModalOpen(true);
+  };
+
+  const openEditModal = (record) => {
+    setEditingRecord(record);
+    setVendorId(String(record.vendor));
     setFormError("");
     setModalOpen(true);
   };
 
   const closeModal = () => {
     setModalOpen(false);
+    setEditingRecord(null);
     setVendorId("");
     setFormError("");
   };
@@ -51,11 +66,36 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
     }
 
     try {
-      await dispatch(addWaxReceive({ vendor: Number(vendorId) })).unwrap();
+      const payload = { vendor: Number(vendorId) };
+      if (editingRecord) {
+        await dispatch(editWaxReceive({ id: editingRecord.id, payload })).unwrap();
+      } else {
+        await dispatch(addWaxReceive(payload)).unwrap();
+      }
       closeModal();
     } catch (requestError) {
       setFormError(requestError || "Unable to save wax receive.");
     }
+  };
+
+  const openHistoryModal = async (record) => {
+    setHistoryTitle(`Wax Receive #${record.id}`);
+    setHistoryLoading(true);
+    setHistoryOpen(true);
+    try {
+      const rows = await listWaxReceiveHistory(record.id);
+      setHistoryRows(rows);
+    } catch {
+      setHistoryRows([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    await dispatch(removeWaxReceive(deleteTarget.id));
+    setDeleteTarget(null);
   };
 
   return (
@@ -85,12 +125,13 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
                 <th>Weight</th>
                 <th>Quantity</th>
                 <th>Total Amount</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {records.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="empty-row">
+                  <td colSpan="7" className="empty-row">
                     No wax receive records found.
                   </td>
                 </tr>
@@ -107,6 +148,42 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
                     <td>{record.weight ?? 0}</td>
                     <td>{record.quantity ?? 0}</td>
                     <td>{record.total_amount ?? 0}</td>
+                    <td>
+                      <div className="action-group">
+                        <button
+                          type="button"
+                          className="small-btn"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            openEditModal(record);
+                          }}
+                          disabled={!canCreateUpdate}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="small-btn info"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            openHistoryModal(record);
+                          }}
+                        >
+                          History
+                        </button>
+                        <button
+                          type="button"
+                          className="small-btn danger"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setDeleteTarget(record);
+                          }}
+                          disabled={submitting}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))
               )}
@@ -118,7 +195,7 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
       {modalOpen && (
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal-card" onClick={(event) => event.stopPropagation()}>
-            <h3>Create Wax Receive</h3>
+            <h3>{editingRecord ? "Edit Wax Receive" : "Create Wax Receive"}</h3>
             <form className="form" onSubmit={handleSubmit}>
               <label htmlFor="wax-vendor">Vendor Name</label>
               <select
@@ -128,14 +205,7 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
                 required
               >
                 <option value="">Select vendor</option>
-                {Array.from(
-                  vendors.reduce((map, vendor) => {
-                    if (!map.has(vendor.vendor_name)) {
-                      map.set(vendor.vendor_name, vendor);
-                    }
-                    return map;
-                  }, new Map()).values(),
-                ).map((vendor) => (
+                {vendors.map((vendor) => (
                   <option key={vendor.id} value={vendor.id}>
                     {vendor.vendor_name}
                   </option>
@@ -149,10 +219,66 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
                   Cancel
                 </button>
                 <button type="submit" disabled={submitting}>
-                  {submitting ? "Saving..." : "Create"}
+                  {submitting ? "Saving..." : editingRecord ? "Update" : "Create"}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {historyOpen && (
+        <div className="modal-overlay" onClick={() => setHistoryOpen(false)}>
+          <div className="modal-card history-card" onClick={(event) => event.stopPropagation()}>
+            <h3>History - {historyTitle}</h3>
+            {historyLoading ? (
+              <p>Loading history...</p>
+            ) : historyRows.length === 0 ? (
+              <p>No history available.</p>
+            ) : (
+              <div className="table-wrap">
+                <table className="records-table">
+                  <thead>
+                    <tr>
+                      <th>Action</th>
+                      <th>Modified By</th>
+                      <th>Modified At</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {historyRows.map((row) => (
+                      <tr key={row.id}>
+                        <td>{row.action}</td>
+                        <td>{row.actor_name || row.actor_email || "-"}</td>
+                        <td>{formatDateTime(row.timestamp)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <div className="modal-actions">
+              <button type="button" className="secondary-btn" onClick={() => setHistoryOpen(false)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div className="modal-overlay" onClick={() => setDeleteTarget(null)}>
+          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+            <h3>Confirm Delete</h3>
+            <p>Are you sure you want to delete this?</p>
+            <div className="modal-actions">
+              <button type="button" className="secondary-btn" onClick={() => setDeleteTarget(null)}>
+                Cancel
+              </button>
+              <button type="button" className="small-btn danger" onClick={confirmDelete}>
+                Delete
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -1,6 +1,6 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 
-import { createWaxReceive, listWaxReceives } from "../api/mgmt";
+import { createWaxReceive, deleteWaxReceive, listWaxReceives, updateWaxReceive } from "../api/mgmt";
 
 const getErrorMessage = (error) =>
   error?.response?.data?.detail ||
@@ -22,6 +22,29 @@ export const addWaxReceive = createAsyncThunk("waxReceive/add", async (payload, 
     return thunkApi.rejectWithValue(getErrorMessage(error));
   }
 });
+
+export const editWaxReceive = createAsyncThunk(
+  "waxReceive/edit",
+  async ({ id, payload }, thunkApi) => {
+    try {
+      return await updateWaxReceive({ id, payload });
+    } catch (error) {
+      return thunkApi.rejectWithValue(getErrorMessage(error));
+    }
+  },
+);
+
+export const removeWaxReceive = createAsyncThunk(
+  "waxReceive/remove",
+  async (id, thunkApi) => {
+    try {
+      await deleteWaxReceive(id);
+      return id;
+    } catch (error) {
+      return thunkApi.rejectWithValue(getErrorMessage(error));
+    }
+  },
+);
 
 const waxReceiveSlice = createSlice({
   name: "waxReceive",
@@ -55,6 +78,32 @@ const waxReceiveSlice = createSlice({
         state.records.push(action.payload);
       })
       .addCase(addWaxReceive.rejected, (state, action) => {
+        state.submitting = false;
+        state.error = action.payload;
+      })
+      .addCase(editWaxReceive.pending, (state) => {
+        state.submitting = true;
+        state.error = null;
+      })
+      .addCase(editWaxReceive.fulfilled, (state, action) => {
+        state.submitting = false;
+        state.records = state.records.map((record) =>
+          record.id === action.payload.id ? action.payload : record,
+        );
+      })
+      .addCase(editWaxReceive.rejected, (state, action) => {
+        state.submitting = false;
+        state.error = action.payload;
+      })
+      .addCase(removeWaxReceive.pending, (state) => {
+        state.submitting = true;
+        state.error = null;
+      })
+      .addCase(removeWaxReceive.fulfilled, (state, action) => {
+        state.submitting = false;
+        state.records = state.records.filter((record) => record.id !== action.payload);
+      })
+      .addCase(removeWaxReceive.rejected, (state, action) => {
         state.submitting = false;
         state.error = action.payload;
       });

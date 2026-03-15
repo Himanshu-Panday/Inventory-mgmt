@@ -128,8 +128,12 @@ export const listItemModelHistory = async (id) => {
   return data;
 };
 
-export const listVendorModels = async () => {
-  const { data } = await mgmtApi.get("/vendor-models/");
+export const listVendorModels = async (options = {}) => {
+  const params = {};
+  if (options.vendorId) {
+    params.vendor = options.vendorId;
+  }
+  const { data } = await mgmtApi.get("/vendor-models/", { params });
   return data;
 };
 
@@ -153,6 +157,31 @@ export const listVendorModelHistory = async (id) => {
   return data;
 };
 
+export const listVendorLists = async () => {
+  const { data } = await mgmtApi.get("/vendor-lists/");
+  return data;
+};
+
+export const createVendorList = async (payload) => {
+  const { data } = await mgmtApi.post("/vendor-lists/", payload);
+  return data;
+};
+
+export const updateVendorList = async ({ id, payload }) => {
+  const { data } = await mgmtApi.patch(`/vendor-lists/${id}/`, payload);
+  return data;
+};
+
+export const deleteVendorList = async (id) => {
+  await mgmtApi.delete(`/vendor-lists/${id}/`);
+  return id;
+};
+
+export const listVendorListHistory = async (id) => {
+  const { data } = await mgmtApi.get(`/vendor-lists/${id}/history/`);
+  return data;
+};
+
 export const listWaxReceives = async () => {
   const { data } = await mgmtApi.get("/wax-receives/");
   return data;
@@ -163,13 +192,45 @@ export const createWaxReceive = async (payload) => {
   return data;
 };
 
-export const listWaxReceiveLines = async (waxReceiveId) => {
-  const { data } = await mgmtApi.get(`/wax-receives/${waxReceiveId}/lines/`);
+export const updateWaxReceive = async ({ id, payload }) => {
+  const { data } = await mgmtApi.patch(`/wax-receives/${id}/`, payload);
   return data;
 };
 
-export const createWaxReceiveLine = async ({ waxReceiveId, payload }) => {
-  const { data } = await mgmtApi.post(`/wax-receives/${waxReceiveId}/lines/`, payload);
+export const deleteWaxReceive = async (id) => {
+  await mgmtApi.delete(`/wax-receives/${id}/`);
+  return id;
+};
+
+export const listWaxReceiveHistory = async (id) => {
+  const { data } = await mgmtApi.get(`/wax-receives/${id}/history/`);
+  return data;
+};
+
+export const listWaxReceiveLines = async (waxReceiveId) => {
+  const { data } = await mgmtApi.get("/wax-receive-lines/", {
+    params: { wax_receive: waxReceiveId },
+  });
+  return data;
+};
+
+export const createWaxReceiveLine = async (payload) => {
+  const { data } = await mgmtApi.post("/wax-receive-lines/", payload);
+  return data;
+};
+
+export const updateWaxReceiveLine = async ({ id, payload }) => {
+  const { data } = await mgmtApi.patch(`/wax-receive-lines/${id}/`, payload);
+  return data;
+};
+
+export const deleteWaxReceiveLine = async (id) => {
+  await mgmtApi.delete(`/wax-receive-lines/${id}/`);
+  return id;
+};
+
+export const listWaxReceiveLineHistory = async (id) => {
+  const { data } = await mgmtApi.get(`/wax-receive-lines/${id}/history/`);
   return data;
 };
 
@@ -180,5 +241,24 @@ export const listIssueMasters = async () => {
 
 export const createIssueMaster = async (payload) => {
   const { data } = await mgmtApi.post("/issue-masters/", payload);
+  return data;
+};
+
+export const listStockManagement = async () => {
+  const { data } = await mgmtApi.get("/stock-management/");
+  return data;
+};
+
+export const listDeletedRecords = async (modelName) => {
+  const params = {};
+  if (modelName) {
+    params.model = modelName;
+  }
+  const { data } = await mgmtApi.get("/deleted-records/", { params });
+  return data;
+};
+
+export const recoverDeletedRecord = async (id) => {
+  const { data } = await mgmtApi.post(`/deleted-records/${id}/recover/`);
   return data;
 };

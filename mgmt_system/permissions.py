@@ -3,9 +3,12 @@ from rest_framework.permissions import SAFE_METHODS, BasePermission
 MASTER_BY_BASENAME = {
     "item-model": "item_master",
     "size-model": "size_master",
+    "vendor-list": "vendor_master",
     "vendor-model": "vendor_master",
     "wax-receive": "wax_receive",
+    "wax-receive-line": "wax_receive",
     "issue-master": "issue_master",
+    "stock-management": "stock_management",
 }
 
 

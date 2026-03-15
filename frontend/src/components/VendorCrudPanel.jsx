@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 
-import { listVendorModelHistory } from "../api/mgmt";
-import { fetchItems } from "../store/itemMasterSlice";
+import {
+  listVendorListHistory,
+} from "../api/mgmt";
 import {
   addVendor,
   editVendor,
@@ -15,95 +17,81 @@ const formatDateTime = (value) => {
   return new Date(value).toLocaleString();
 };
 
-const defaultForm = {
+const defaultVendorForm = {
   vendor_name: "",
-  item_name: "",
-  rate: "",
 };
 
 const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const vendorState = useSelector((state) => state.vendorMaster);
-  const itemState = useSelector((state) => state.itemMaster);
   const { records, loading, submitting, error } = vendorState;
-  const itemOptions = itemState.records;
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingRecord, setEditingRecord] = useState(null);
-  const [form, setForm] = useState(defaultForm);
-  const [formError, setFormError] = useState("");
+  const [isVendorModalOpen, setIsVendorModalOpen] = useState(false);
+  const [editingVendor, setEditingVendor] = useState(null);
+  const [vendorForm, setVendorForm] = useState(defaultVendorForm);
+  const [vendorFormError, setVendorFormError] = useState("");
+
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyRows, setHistoryRows] = useState([]);
   const [historyTitle, setHistoryTitle] = useState("");
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState(null);
 
+  const [deleteTarget, setDeleteTarget] = useState(null);
   useEffect(() => {
     dispatch(fetchVendors());
-    if (itemOptions.length === 0) {
-      dispatch(fetchItems());
-    }
-  }, [dispatch, itemOptions.length]);
+  }, [dispatch]);
 
   const openCreateModal = () => {
-    setEditingRecord(null);
-    setForm(defaultForm);
-    setFormError("");
-    setIsModalOpen(true);
+    setEditingVendor(null);
+    setVendorForm(defaultVendorForm);
+    setVendorFormError("");
+    setIsVendorModalOpen(true);
   };
 
   const openEditModal = (record) => {
-    setEditingRecord(record);
-    setForm({
+    setEditingVendor(record);
+    setVendorForm({
       vendor_name: record.vendor_name,
-      item_name: String(record.item_name),
-      rate: String(record.rate),
     });
-    setFormError("");
-    setIsModalOpen(true);
+    setVendorFormError("");
+    setIsVendorModalOpen(true);
   };
 
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setEditingRecord(null);
-    setForm(defaultForm);
-    setFormError("");
+  const closeVendorModal = () => {
+    setIsVendorModalOpen(false);
+    setEditingVendor(null);
+    setVendorForm(defaultVendorForm);
+    setVendorFormError("");
   };
 
-  const handleSubmit = async (event) => {
+  const handleVendorSubmit = async (event) => {
     event.preventDefault();
-    setFormError("");
+    setVendorFormError("");
 
     if (!canCreateUpdate) {
-      setFormError("You have read-only access for this master.");
+      setVendorFormError("You have read-only access for this master.");
       return;
     }
 
-    if (!form.vendor_name.trim() || !form.item_name || !form.rate) {
-      setFormError("Vendor name, item name and rate are required.");
+    if (!vendorForm.vendor_name.trim()) {
+      setVendorFormError("Vendor name is required.");
       return;
     }
 
     const payload = {
-      vendor_name: form.vendor_name.trim(),
-      item_name: Number(form.item_name),
-      rate: Number(form.rate),
+      vendor_name: vendorForm.vendor_name.trim(),
     };
 
-    if (Number.isNaN(payload.rate)) {
-      setFormError("Rate must be a valid number.");
-      return;
-    }
-
     try {
-      if (editingRecord) {
-        await dispatch(editVendor({ id: editingRecord.id, payload })).unwrap();
+      if (editingVendor) {
+        await dispatch(editVendor({ id: editingVendor.id, payload })).unwrap();
       } else {
         await dispatch(addVendor(payload)).unwrap();
       }
-      closeModal();
+      closeVendorModal();
     } catch (requestError) {
-      setFormError(requestError || "Unable to save vendor.");
+      setVendorFormError(requestError || "Unable to save vendor.");
     }
   };
 
@@ -112,7 +100,7 @@ const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
     setHistoryLoading(true);
     setHistoryOpen(true);
     try {
-      const rows = await listVendorModelHistory(record.id);
+      const rows = await listVendorListHistory(record.id);
       setHistoryRows(rows);
     } catch {
       setHistoryRows([]);
@@ -132,7 +120,7 @@ const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
       <div className="section-head">
         <div>
           <h2>Vendor Master</h2>
-          <p>Manage vendor rates mapped to item master.</p>
+          <p>Manage vendor list records.</p>
         </div>
         <button type="button" className="add-btn" onClick={openCreateModal} disabled={!canCreateUpdate}>
           Add
@@ -150,9 +138,7 @@ const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
               <tr>
                 <th>Serial No.</th>
                 <th>Vendor Name</th>
-                <th>Item Name</th>
-                <th>Rate</th>
-                <th>Date & Time</th>
+                <th>Created At</th>
                 <th>Created By</th>
                 <th>Actions</th>
               </tr>
@@ -160,25 +146,26 @@ const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
             <tbody>
               {records.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="empty-row">
+                  <td colSpan="6" className="empty-row">
                     No vendor records found.
                   </td>
                 </tr>
               ) : (
                 records.map((record) => (
-                  <tr key={record.id}>
+                  <tr key={record.id} className="clickable-row" onClick={() => navigate(`/vendors/${record.id}`)}>
                     <td>{record.id}</td>
                     <td>{record.vendor_name}</td>
-                    <td>{record.item_name_label}</td>
-                    <td>{record.rate}</td>
-                    <td>{formatDateTime(record.date_time)}</td>
+                    <td>{formatDateTime(record.created_at)}</td>
                     <td>{record.created_by_email || "-"}</td>
                     <td>
                       <div className="action-group">
                         <button
                           type="button"
                           className="small-btn"
-                          onClick={() => openEditModal(record)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            openEditModal(record);
+                          }}
                           disabled={!canCreateUpdate}
                         >
                           Edit
@@ -186,14 +173,20 @@ const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
                         <button
                           type="button"
                           className="small-btn info"
-                          onClick={() => openHistoryModal(record)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            openHistoryModal(record);
+                          }}
                         >
                           History
                         </button>
                         <button
                           type="button"
                           className="small-btn danger"
-                          onClick={() => setDeleteTarget(record)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setDeleteTarget(record);
+                          }}
                           disabled={submitting || !canDelete}
                         >
                           Delete
@@ -208,62 +201,31 @@ const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
         </div>
       )}
 
-      {isModalOpen && (
-        <div className="modal-overlay" onClick={closeModal}>
+      {isVendorModalOpen && (
+        <div className="modal-overlay" onClick={closeVendorModal}>
           <div className="modal-card" onClick={(event) => event.stopPropagation()}>
-            <h3>{editingRecord ? "Edit Vendor" : "Create Vendor"}</h3>
-            <form className="form" onSubmit={handleSubmit}>
+            <h3>{editingVendor ? "Edit Vendor" : "Create Vendor"}</h3>
+            <form className="form" onSubmit={handleVendorSubmit}>
               <label htmlFor="vendor-name">Vendor Name</label>
               <input
                 id="vendor-name"
                 type="text"
-                value={form.vendor_name}
+                value={vendorForm.vendor_name}
                 onChange={(event) =>
-                  setForm((prev) => ({ ...prev, vendor_name: event.target.value }))
+                  setVendorForm((prev) => ({ ...prev, vendor_name: event.target.value }))
                 }
                 placeholder="Enter vendor name"
                 required
               />
 
-              <label htmlFor="vendor-item">Item Name</label>
-              <select
-                id="vendor-item"
-                value={form.item_name}
-                onChange={(event) =>
-                  setForm((prev) => ({ ...prev, item_name: event.target.value }))
-                }
-                required
-              >
-                <option value="">Select item</option>
-                {itemOptions.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-
-              <label htmlFor="vendor-rate">Rate</label>
-              <input
-                id="vendor-rate"
-                type="number"
-                min="0"
-                step="1"
-                value={form.rate}
-                onChange={(event) =>
-                  setForm((prev) => ({ ...prev, rate: event.target.value }))
-                }
-                placeholder="Enter rate"
-                required
-              />
-
-              {formError && <p className="error">{formError}</p>}
+              {vendorFormError && <p className="error">{vendorFormError}</p>}
 
               <div className="modal-actions">
-                <button type="button" className="secondary-btn" onClick={closeModal}>
+                <button type="button" className="secondary-btn" onClick={closeVendorModal}>
                   Cancel
                 </button>
                 <button type="submit" disabled={submitting}>
-                  {submitting ? "Saving..." : editingRecord ? "Update" : "Create"}
+                  {submitting ? "Saving..." : editingVendor ? "Update" : "Create"}
                 </button>
               </div>
             </form>
@@ -311,12 +273,23 @@ const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
       )}
 
       {deleteTarget && (
-        <div className="modal-overlay" onClick={() => setDeleteTarget(null)}>
+        <div
+          className="modal-overlay"
+          onClick={() => {
+            setDeleteTarget(null);
+          }}
+        >
           <div className="modal-card" onClick={(event) => event.stopPropagation()}>
             <h3>Confirm Delete</h3>
             <p>Are you sure you want to delete this?</p>
             <div className="modal-actions">
-              <button type="button" className="secondary-btn" onClick={() => setDeleteTarget(null)}>
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={() => {
+                  setDeleteTarget(null);
+                }}
+              >
                 Cancel
               </button>
               <button type="button" className="small-btn danger" onClick={confirmDelete}>
