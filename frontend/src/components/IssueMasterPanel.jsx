@@ -3,14 +3,20 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { fetchItems } from "../store/itemMasterSlice";
 import { fetchSizes } from "../store/sizeMasterSlice";
-import { addIssueMaster, fetchIssueMasters } from "../store/issueMasterSlice";
+import {
+  addIssueMaster,
+  editIssueMaster,
+  fetchIssueMasters,
+  removeIssueMaster,
+} from "../store/issueMasterSlice";
+import { listIssueMasterHistory } from "../api/mgmt";
 
 const formatDateTime = (value) => {
   if (!value) return "-";
   return new Date(value).toLocaleString();
 };
 
-const IssueMasterPanel = ({ canCreateUpdate }) => {
+const IssueMasterPanel = ({ canCreateUpdate, canDelete }) => {
   const dispatch = useDispatch();
   const { records, loading, submitting, error } = useSelector((state) => state.issueMaster);
   const items = useSelector((state) => state.itemMaster.records);
@@ -25,6 +31,12 @@ const IssueMasterPanel = ({ canCreateUpdate }) => {
   });
   const [formError, setFormError] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingRecord, setEditingRecord] = useState(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyRows, setHistoryRows] = useState([]);
+  const [historyTitle, setHistoryTitle] = useState("");
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   useEffect(() => {
     dispatch(fetchIssueMasters());
@@ -33,6 +45,7 @@ const IssueMasterPanel = ({ canCreateUpdate }) => {
   }, [dispatch, items.length, sizes.length]);
 
   const openModal = () => {
+    setEditingRecord(null);
     setForm({
       item: "",
       size: "",
@@ -44,8 +57,22 @@ const IssueMasterPanel = ({ canCreateUpdate }) => {
     setModalOpen(true);
   };
 
+  const openEditModal = (record) => {
+    setEditingRecord(record);
+    setForm({
+      item: String(record.item),
+      size: String(record.size),
+      out_weight: String(record.out_weight),
+      out_quantity: String(record.out_quantity),
+      description: record.description || "",
+    });
+    setFormError("");
+    setModalOpen(true);
+  };
+
   const closeModal = () => {
     setModalOpen(false);
+    setEditingRecord(null);
   };
 
   const handleSubmit = async (event) => {
@@ -63,19 +90,42 @@ const IssueMasterPanel = ({ canCreateUpdate }) => {
     }
 
     try {
-      await dispatch(
-        addIssueMaster({
-          item: Number(form.item),
-          size: Number(form.size),
-          out_weight: Number(form.out_weight),
-          out_quantity: Number(form.out_quantity),
-          description: form.description,
-        }),
-      ).unwrap();
+      const payload = {
+        item: Number(form.item),
+        size: Number(form.size),
+        out_weight: Number(form.out_weight),
+        out_quantity: Number(form.out_quantity),
+        description: form.description,
+      };
+      if (editingRecord) {
+        await dispatch(editIssueMaster({ id: editingRecord.id, payload })).unwrap();
+      } else {
+        await dispatch(addIssueMaster(payload)).unwrap();
+      }
       closeModal();
     } catch (requestError) {
       setFormError(requestError || "Unable to save issue record.");
     }
+  };
+
+  const openHistoryModal = async (record) => {
+    setHistoryTitle(`${record.item_name} - ${record.size_name}`);
+    setHistoryLoading(true);
+    setHistoryOpen(true);
+    try {
+      const rows = await listIssueMasterHistory(record.id);
+      setHistoryRows(rows);
+    } catch {
+      setHistoryRows([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    await dispatch(removeIssueMaster(deleteTarget.id));
+    setDeleteTarget(null);
   };
 
   return (
@@ -106,12 +156,13 @@ const IssueMasterPanel = ({ canCreateUpdate }) => {
                 <th>Out Weight</th>
                 <th>Out Quantity</th>
                 <th>Description</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {records.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="empty-row">
+                  <td colSpan="8" className="empty-row">
                     No issue records found.
                   </td>
                 </tr>
@@ -125,6 +176,33 @@ const IssueMasterPanel = ({ canCreateUpdate }) => {
                     <td>{record.out_weight}</td>
                     <td>{record.out_quantity}</td>
                     <td>{record.description || "-"}</td>
+                    <td>
+                      <div className="action-group">
+                        <button
+                          type="button"
+                          className="small-btn"
+                          onClick={() => openEditModal(record)}
+                          disabled={!canCreateUpdate}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="small-btn info"
+                          onClick={() => openHistoryModal(record)}
+                        >
+                          History
+                        </button>
+                        <button
+                          type="button"
+                          className="small-btn danger"
+                          onClick={() => setDeleteTarget(record)}
+                          disabled={!canDelete}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))
               )}
@@ -136,7 +214,7 @@ const IssueMasterPanel = ({ canCreateUpdate }) => {
       {modalOpen && (
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal-card" onClick={(event) => event.stopPropagation()}>
-            <h3>Create Issue</h3>
+            <h3>{editingRecord ? "Edit Issue" : "Create Issue"}</h3>
             <form className="form wax-form" onSubmit={handleSubmit}>
               <label htmlFor="issue-item">Item</label>
               <select
@@ -203,10 +281,66 @@ const IssueMasterPanel = ({ canCreateUpdate }) => {
                   Cancel
                 </button>
                 <button type="submit" disabled={submitting}>
-                  {submitting ? "Saving..." : "Create"}
+                  {submitting ? "Saving..." : editingRecord ? "Update" : "Create"}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {historyOpen && (
+        <div className="modal-overlay" onClick={() => setHistoryOpen(false)}>
+          <div className="modal-card history-card" onClick={(event) => event.stopPropagation()}>
+            <h3>History - {historyTitle}</h3>
+            {historyLoading ? (
+              <p>Loading history...</p>
+            ) : historyRows.length === 0 ? (
+              <p>No history available.</p>
+            ) : (
+              <div className="table-wrap">
+                <table className="records-table">
+                  <thead>
+                    <tr>
+                      <th>Action</th>
+                      <th>Modified By</th>
+                      <th>Modified At</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {historyRows.map((row) => (
+                      <tr key={row.id}>
+                        <td>{row.action}</td>
+                        <td>{row.actor_name || row.actor_email || "-"}</td>
+                        <td>{formatDateTime(row.timestamp)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <div className="modal-actions">
+              <button type="button" className="secondary-btn" onClick={() => setHistoryOpen(false)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div className="modal-overlay" onClick={() => setDeleteTarget(null)}>
+          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+            <h3>Confirm Delete</h3>
+            <p>Are you sure you want to delete this?</p>
+            <div className="modal-actions">
+              <button type="button" className="secondary-btn" onClick={() => setDeleteTarget(null)}>
+                Cancel
+              </button>
+              <button type="button" className="small-btn danger" onClick={confirmDelete}>
+                Delete
+              </button>
+            </div>
           </div>
         </div>
       )}

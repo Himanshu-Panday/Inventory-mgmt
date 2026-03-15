@@ -218,18 +218,6 @@ const WaxReceiveDetailPage = () => {
           <button type="button" className="add-btn" onClick={openLineModal}>
             Add Line
           </button>
-          <select
-            className="item-select"
-            value={selectedItemId}
-            onChange={(event) => setSelectedItemId(event.target.value)}
-          >
-            <option value="">Select item</option>
-            {vendorItemOptions.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.label}
-              </option>
-            ))}
-          </select>
         </div>
       </div>
 
@@ -308,6 +296,21 @@ const WaxReceiveDetailPage = () => {
           <div className="modal-card" onClick={(event) => event.stopPropagation()}>
             <h3>{editingLine ? "Edit Wax Receive Line" : "Add Wax Receive Line"}</h3>
             <form className="form wax-form" onSubmit={handleSubmit}>
+              <label htmlFor="wax-item">Item</label>
+              <select
+                id="wax-item"
+                value={selectedItemId}
+                onChange={(event) => setSelectedItemId(event.target.value)}
+                required
+              >
+                <option value="">Select item</option>
+                {vendorItemOptions.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+
               <label htmlFor="wax-size">Size</label>
               <select
                 id="wax-size"

@@ -371,6 +371,10 @@ button:disabled {
   background: #d73737;
 }
 
+.small-btn.success {
+  background: #1f9d4c;
+}
+
 .small-btn.info {
   background: #2787d7;
 }

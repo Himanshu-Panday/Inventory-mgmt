@@ -219,6 +219,8 @@ class WaxReceiveViewSet(viewsets.ModelViewSet):
 
     def perform_destroy(self, instance):
         with set_actor(self.request.user):
+            if instance.lines.exists():
+                raise ValidationError("Delete all wax receive lines before deleting this record.")
             lines_payload = [
                 {
                     "item": line.item_id,
@@ -337,6 +339,10 @@ class WaxReceiveLineViewSet(viewsets.ModelViewSet):
                     "item_name": instance.item.name,
                     "size_name": instance.size.name,
                     "wax_receive": instance.wax_receive_id,
+                    "vendor_name": instance.wax_receive.vendor.vendor_name,
+                    "wax_receive_date_time": instance.wax_receive.date_time.isoformat()
+                    if instance.wax_receive.date_time
+                    else None,
                 },
             )
             instance.delete()
@@ -387,11 +393,50 @@ class IssueMasterViewSet(viewsets.ModelViewSet):
                 },
             )
 
+    @action(detail=True, methods=["get"])
+    def history(self, request, pk=None):
+        logs = LogEntry.objects.get_for_object(self.get_object()).select_related("actor")
+        payload = [
+            {
+                "id": log.id,
+                "action": log.get_action_display(),
+                "timestamp": log.timestamp,
+                "actor_name": (
+                    log.actor.get_full_name().strip()
+                    if getattr(log.actor, "get_full_name", None)
+                    else None
+                )
+                or None,
+                "actor_email": getattr(log.actor, "email", None),
+            }
+            for log in logs
+        ]
+        return Response(AuditLogSerializer(payload, many=True).data)
+
 
 class StockManagementViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = StockManagement_Model.objects.select_related("item", "size").all()
     serializer_class = StockManagementSerializer
     permission_classes = [permissions.IsAuthenticated, MasterAccessPermission]
+
+    @action(detail=True, methods=["get"])
+    def in_details(self, request, pk=None):
+        stock = self.get_object()
+        rows = (
+            WaxReceiveLine.objects.filter(item=stock.item, size=stock.size)
+            .select_related("wax_receive__vendor")
+            .order_by("-id")
+        )
+        payload = [
+            {
+                "id": row.id,
+                "vendor_name": row.wax_receive.vendor.vendor_name,
+                "in_weight": row.in_weight,
+                "in_quantity": row.in_quantity,
+            }
+            for row in rows
+        ]
+        return Response(payload)
 
 
 class DeletedRecordViewSet(viewsets.ReadOnlyModelViewSet):
@@ -492,6 +537,17 @@ class DeletedRecordViewSet(viewsets.ReadOnlyModelViewSet):
                 )
             elif record.model_name == "wax_receive_line":
                 wax_receive = WaxReceive.objects.filter(pk=payload.get("wax_receive")).first()
+                if not wax_receive:
+                    vendor_name = payload.get("vendor_name")
+                    wax_dt = payload.get("wax_receive_date_time")
+                    if vendor_name:
+                        queryset = WaxReceive.objects.filter(
+                            vendor__vendor_name=vendor_name
+                        ).order_by("-date_time")
+                        if wax_dt:
+                            wax_receive = queryset.filter(date_time=wax_dt).first()
+                        if not wax_receive:
+                            wax_receive = queryset.first()
                 item = Item_Model.objects.filter(pk=payload.get("item")).first()
                 size = Size_Model.objects.filter(pk=payload.get("size")).first()
                 if not wax_receive or not item or not size:

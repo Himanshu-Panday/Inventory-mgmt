@@ -244,8 +244,28 @@ export const createIssueMaster = async (payload) => {
   return data;
 };
 
+export const updateIssueMaster = async ({ id, payload }) => {
+  const { data } = await mgmtApi.patch(`/issue-masters/${id}/`, payload);
+  return data;
+};
+
+export const deleteIssueMaster = async (id) => {
+  await mgmtApi.delete(`/issue-masters/${id}/`);
+  return id;
+};
+
+export const listIssueMasterHistory = async (id) => {
+  const { data } = await mgmtApi.get(`/issue-masters/${id}/history/`);
+  return data;
+};
+
 export const listStockManagement = async () => {
   const { data } = await mgmtApi.get("/stock-management/");
+  return data;
+};
+
+export const listStockInDetails = async (id) => {
+  const { data } = await mgmtApi.get(`/stock-management/${id}/in_details/`);
   return data;
 };
 

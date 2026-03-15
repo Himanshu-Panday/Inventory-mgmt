@@ -1,6 +1,11 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 
-import { createIssueMaster, listIssueMasters } from "../api/mgmt";
+import {
+  createIssueMaster,
+  deleteIssueMaster,
+  listIssueMasters,
+  updateIssueMaster,
+} from "../api/mgmt";
 
 const getErrorMessage = (error) =>
   error?.response?.data?.detail ||
@@ -23,6 +28,29 @@ export const addIssueMaster = createAsyncThunk("issueMaster/add", async (payload
     return thunkApi.rejectWithValue(getErrorMessage(error));
   }
 });
+
+export const editIssueMaster = createAsyncThunk(
+  "issueMaster/edit",
+  async ({ id, payload }, thunkApi) => {
+    try {
+      return await updateIssueMaster({ id, payload });
+    } catch (error) {
+      return thunkApi.rejectWithValue(getErrorMessage(error));
+    }
+  },
+);
+
+export const removeIssueMaster = createAsyncThunk(
+  "issueMaster/remove",
+  async (id, thunkApi) => {
+    try {
+      await deleteIssueMaster(id);
+      return id;
+    } catch (error) {
+      return thunkApi.rejectWithValue(getErrorMessage(error));
+    }
+  },
+);
 
 const issueMasterSlice = createSlice({
   name: "issueMaster",
@@ -56,6 +84,32 @@ const issueMasterSlice = createSlice({
         state.records.push(action.payload);
       })
       .addCase(addIssueMaster.rejected, (state, action) => {
+        state.submitting = false;
+        state.error = action.payload;
+      })
+      .addCase(editIssueMaster.pending, (state) => {
+        state.submitting = true;
+        state.error = null;
+      })
+      .addCase(editIssueMaster.fulfilled, (state, action) => {
+        state.submitting = false;
+        state.records = state.records.map((record) =>
+          record.id === action.payload.id ? action.payload : record,
+        );
+      })
+      .addCase(editIssueMaster.rejected, (state, action) => {
+        state.submitting = false;
+        state.error = action.payload;
+      })
+      .addCase(removeIssueMaster.pending, (state) => {
+        state.submitting = true;
+        state.error = null;
+      })
+      .addCase(removeIssueMaster.fulfilled, (state, action) => {
+        state.submitting = false;
+        state.records = state.records.filter((record) => record.id !== action.payload);
+      })
+      .addCase(removeIssueMaster.rejected, (state, action) => {
         state.submitting = false;
         state.error = action.payload;
       });

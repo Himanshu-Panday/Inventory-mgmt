@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 
 import {
   createUserRequest,
-  deleteUserRequest,
   listMasterOptionsRequest,
   listUsersRequest,
   updateUserRequest,
@@ -192,9 +191,24 @@ const UserManagementPanel = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    await deleteUserRequest(id);
-    setUsers((prev) => prev.filter((user) => user.id !== id));
+  const handleToggleActive = async (user, nextActive) => {
+    await updateUserRequest({
+      id: user.id,
+      payload: {
+        is_active: nextActive,
+        master_permissions: (user.master_permissions || []).map((permission) => ({
+          master_name: permission.master_name,
+          can_read: permission.can_read,
+          can_create_update: permission.can_create_update,
+          can_delete: permission.can_delete,
+        })),
+      },
+    });
+    setUsers((prev) =>
+      prev.map((entry) =>
+        entry.id === user.id ? { ...entry, is_active: nextActive } : entry,
+      ),
+    );
   };
 
   return (
@@ -244,14 +258,25 @@ const UserManagementPanel = () => {
                         <button type="button" className="small-btn" onClick={() => openEditModal(user)}>
                           Edit
                         </button>
-                        <button
-                          type="button"
-                          className="small-btn danger"
-                          onClick={() => handleDelete(user.id)}
-                          disabled={saving}
-                        >
-                          Delete
-                        </button>
+                        {user.is_active ? (
+                          <button
+                            type="button"
+                            className="small-btn danger"
+                            onClick={() => handleToggleActive(user, false)}
+                            disabled={saving}
+                          >
+                            Deactivate
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="small-btn success"
+                            onClick={() => handleToggleActive(user, true)}
+                            disabled={saving}
+                          >
+                            Activate
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

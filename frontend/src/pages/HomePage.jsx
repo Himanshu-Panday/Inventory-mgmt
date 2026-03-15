@@ -102,7 +102,7 @@ const HomePage = () => {
     if (activeTab === "Issue-Master") {
       return (
         <Suspense fallback={<div className="content-card"><div className="inline-loader" /></div>}>
-          <IssueMasterPanel canCreateUpdate={canCreateUpdate} />
+          <IssueMasterPanel canCreateUpdate={canCreateUpdate} canDelete={canDelete} />
         </Suspense>
       );
     }
