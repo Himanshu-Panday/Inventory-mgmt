@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
+import useInfiniteScroll from "../hooks/useInfiniteScroll";
 import {
   addItem,
   editItem,
@@ -59,6 +60,10 @@ const MasterCrudPanel = ({ tabName, canCreateUpdate, canDelete }) => {
   const [historyTitle, setHistoryTitle] = useState("");
   const [historyLoading, setHistoryLoading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const { visibleCount, sentinelRef } = useInfiniteScroll(records.length);
+  const visibleRecords = records.slice(0, visibleCount);
 
   useEffect(() => {
     dispatch(config.fetchAction());
@@ -133,6 +138,27 @@ const MasterCrudPanel = ({ tabName, canCreateUpdate, canDelete }) => {
     setDeleteTarget(null);
   };
 
+  const toggleSelectAll = () => {
+    if (selectedIds.length === records.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(records.map((record) => record.id));
+    }
+  };
+
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((entry) => entry !== id) : [...prev, id],
+    );
+  };
+
+  const confirmBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    await Promise.all(selectedIds.map((id) => dispatch(config.removeAction(id))));
+    setSelectedIds([]);
+    setBulkDeleteOpen(false);
+  };
+
   const openHistoryModal = async (record) => {
     setHistoryTitle(record.name);
     setHistoryLoading(true);
@@ -154,9 +180,21 @@ const MasterCrudPanel = ({ tabName, canCreateUpdate, canDelete }) => {
           <h2>{config.title}</h2>
           <p>Manage your {config.title.toLowerCase()} entries.</p>
         </div>
-        <button type="button" className="add-btn" onClick={openCreateModal} disabled={!canCreateUpdate}>
-          Add
-        </button>
+        <div className="action-group">
+          {selectedIds.length > 0 && (
+            <button
+              type="button"
+              className="small-btn danger"
+              onClick={() => setBulkDeleteOpen(true)}
+              disabled={!canDelete}
+            >
+              Delete ({selectedIds.length})
+            </button>
+          )}
+          <button type="button" className="add-btn" onClick={openCreateModal} disabled={!canCreateUpdate}>
+            Add
+          </button>
+        </div>
       </div>
 
       {error && <p className="error">{error}</p>}
@@ -168,6 +206,13 @@ const MasterCrudPanel = ({ tabName, canCreateUpdate, canDelete }) => {
           <table className="records-table">
             <thead>
               <tr>
+                <th>
+                  <input
+                    type="checkbox"
+                    checked={records.length > 0 && selectedIds.length === records.length}
+                    onChange={toggleSelectAll}
+                  />
+                </th>
                 <th>Name</th>
                 <th>Date & Time</th>
                 <th>Created By</th>
@@ -177,13 +222,20 @@ const MasterCrudPanel = ({ tabName, canCreateUpdate, canDelete }) => {
             <tbody>
               {records.length === 0 ? (
                 <tr>
-                  <td colSpan="4" className="empty-row">
+                  <td colSpan="5" className="empty-row">
                     No records found for {panelTitle}.
                   </td>
                 </tr>
               ) : (
-                records.map((record) => (
+                visibleRecords.map((record) => (
                   <tr key={record.id}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(record.id)}
+                        onChange={() => toggleSelect(record.id)}
+                      />
+                    </td>
                     <td>{record.name}</td>
                     <td>{formatDate(record.date)}</td>
                     <td>{record.created_by_email || "-"}</td>
@@ -192,6 +244,8 @@ const MasterCrudPanel = ({ tabName, canCreateUpdate, canDelete }) => {
                         <button
                           type="button"
                           className="small-btn"
+                          data-action="edit"
+                          data-icon="✎"
                           onClick={() => openEditModal(record)}
                           disabled={!canCreateUpdate}
                         >
@@ -200,6 +254,8 @@ const MasterCrudPanel = ({ tabName, canCreateUpdate, canDelete }) => {
                         <button
                           type="button"
                           className="small-btn info"
+                          data-action="history"
+                          data-icon="⏱"
                           onClick={() => openHistoryModal(record)}
                         >
                           History
@@ -207,6 +263,8 @@ const MasterCrudPanel = ({ tabName, canCreateUpdate, canDelete }) => {
                         <button
                           type="button"
                           className="small-btn danger"
+                          data-action="delete"
+                          data-icon="✖"
                           onClick={() => setDeleteTarget(record)}
                           disabled={submitting || !canDelete}
                         >
@@ -219,6 +277,7 @@ const MasterCrudPanel = ({ tabName, canCreateUpdate, canDelete }) => {
               )}
             </tbody>
           </table>
+          {visibleCount < records.length && <div ref={sentinelRef} className="inline-loader" />}
         </div>
       )}
 
@@ -302,6 +361,23 @@ const MasterCrudPanel = ({ tabName, canCreateUpdate, canDelete }) => {
                 Cancel
               </button>
               <button type="button" className="small-btn danger" onClick={confirmDelete}>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {bulkDeleteOpen && (
+        <div className="modal-overlay" onClick={() => setBulkDeleteOpen(false)}>
+          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+            <h3>Confirm Delete</h3>
+            <p>Are you sure you want to delete {selectedIds.length} records?</p>
+            <div className="modal-actions">
+              <button type="button" className="secondary-btn" onClick={() => setBulkDeleteOpen(false)}>
+                Cancel
+              </button>
+              <button type="button" className="small-btn danger" onClick={confirmBulkDelete}>
                 Delete
               </button>
             </div>

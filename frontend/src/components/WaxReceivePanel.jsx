@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { listVendorLists, listWaxReceiveHistory } from "../api/mgmt";
+import useInfiniteScroll from "../hooks/useInfiniteScroll";
 import { useNavigate } from "react-router-dom";
 import { addWaxReceive, editWaxReceive, fetchWaxReceives, removeWaxReceive } from "../store/waxReceiveSlice";
 
@@ -24,6 +25,16 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
   const [historyTitle, setHistoryTitle] = useState("");
   const [historyLoading, setHistoryLoading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const { visibleCount, sentinelRef } = useInfiniteScroll(records.length);
+  const visibleRecords = records.slice(0, visibleCount);
+  const selectedVendorId = vendorId ? String(vendorId) : "";
+  const duplicateRecord = records.find(
+    (record) => String(record.vendor) === selectedVendorId,
+  );
+  const isDuplicateVendor =
+    Boolean(duplicateRecord) && (!editingRecord || duplicateRecord.id !== editingRecord.id);
 
   useEffect(() => {
     dispatch(fetchWaxReceives());
@@ -98,6 +109,27 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
     setDeleteTarget(null);
   };
 
+  const toggleSelectAll = () => {
+    if (selectedIds.length === records.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(records.map((record) => record.id));
+    }
+  };
+
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((entry) => entry !== id) : [...prev, id],
+    );
+  };
+
+  const confirmBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    await Promise.all(selectedIds.map((id) => dispatch(removeWaxReceive(id))));
+    setSelectedIds([]);
+    setBulkDeleteOpen(false);
+  };
+
   return (
     <div className="content-card">
       <div className="section-head">
@@ -105,9 +137,21 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
           <h2>Wax Receive</h2>
           <p>Create wax receive entries for vendors.</p>
         </div>
-        <button type="button" className="add-btn" onClick={openModal} disabled={!canCreateUpdate}>
-          Add
-        </button>
+        <div className="action-group">
+          {selectedIds.length > 0 && (
+            <button
+              type="button"
+              className="small-btn danger"
+              onClick={() => setBulkDeleteOpen(true)}
+              disabled={submitting}
+            >
+              Delete ({selectedIds.length})
+            </button>
+          )}
+          <button type="button" className="add-btn" onClick={openModal} disabled={!canCreateUpdate}>
+            Add
+          </button>
+        </div>
       </div>
 
       {error && <p className="error">{error}</p>}
@@ -119,6 +163,13 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
           <table className="records-table">
             <thead>
               <tr>
+                <th>
+                  <input
+                    type="checkbox"
+                    checked={records.length > 0 && selectedIds.length === records.length}
+                    onChange={toggleSelectAll}
+                  />
+                </th>
                 <th>ID</th>
                 <th>Date & Time</th>
                 <th>Vendor Name</th>
@@ -131,17 +182,24 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
             <tbody>
               {records.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="empty-row">
+                  <td colSpan="8" className="empty-row">
                     No wax receive records found.
                   </td>
                 </tr>
               ) : (
-                records.map((record) => (
+                visibleRecords.map((record) => (
                   <tr
                     key={record.id}
                     className="clickable-row"
                     onClick={() => navigate(`/wax-receives/${record.id}`)}
                   >
+                    <td onClick={(event) => event.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(record.id)}
+                        onChange={() => toggleSelect(record.id)}
+                      />
+                    </td>
                     <td>{record.id}</td>
                     <td>{formatDateTime(record.date_time)}</td>
                     <td>{record.vendor_name}</td>
@@ -153,6 +211,8 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
                         <button
                           type="button"
                           className="small-btn"
+                          data-action="edit"
+                          data-icon="✎"
                           onClick={(event) => {
                             event.stopPropagation();
                             openEditModal(record);
@@ -164,6 +224,8 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
                         <button
                           type="button"
                           className="small-btn info"
+                          data-action="history"
+                          data-icon="⏱"
                           onClick={(event) => {
                             event.stopPropagation();
                             openHistoryModal(record);
@@ -174,6 +236,8 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
                         <button
                           type="button"
                           className="small-btn danger"
+                          data-action="delete"
+                          data-icon="✖"
                           onClick={(event) => {
                             event.stopPropagation();
                             setDeleteTarget(record);
@@ -189,6 +253,7 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
               )}
             </tbody>
           </table>
+          {visibleCount < records.length && <div ref={sentinelRef} className="inline-loader" />}
         </div>
       )}
 
@@ -213,12 +278,13 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
               </select>
 
               {formError && <p className="error">{formError}</p>}
+              {isDuplicateVendor && <p className="error">This vendor already has a wax receive.</p>}
 
               <div className="modal-actions">
                 <button type="button" className="secondary-btn" onClick={closeModal}>
                   Cancel
                 </button>
-                <button type="submit" disabled={submitting}>
+                <button type="submit" disabled={submitting || isDuplicateVendor}>
                   {submitting ? "Saving..." : editingRecord ? "Update" : "Create"}
                 </button>
               </div>
@@ -276,6 +342,23 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
                 Cancel
               </button>
               <button type="button" className="small-btn danger" onClick={confirmDelete}>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {bulkDeleteOpen && (
+        <div className="modal-overlay" onClick={() => setBulkDeleteOpen(false)}>
+          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+            <h3>Confirm Delete</h3>
+            <p>Are you sure you want to delete {selectedIds.length} records?</p>
+            <div className="modal-actions">
+              <button type="button" className="secondary-btn" onClick={() => setBulkDeleteOpen(false)}>
+                Cancel
+              </button>
+              <button type="button" className="small-btn danger" onClick={confirmBulkDelete}>
                 Delete
               </button>
             </div>

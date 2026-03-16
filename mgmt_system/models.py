@@ -140,6 +140,7 @@ class WaxReceiveLine(models.Model):
     in_quantity = models.IntegerField()
     rate = models.DecimalField(max_digits=12, decimal_places=2)
     amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    image = models.ImageField(upload_to="wax_receive_lines/", null=True, blank=True)
 
     class Meta:
         ordering = ["id"]

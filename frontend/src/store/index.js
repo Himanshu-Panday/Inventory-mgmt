@@ -5,6 +5,7 @@ import sizeMasterReducer from "./sizeMasterSlice";
 import vendorMasterReducer from "./vendorMasterSlice";
 import waxReceiveReducer from "./waxReceiveSlice";
 import issueMasterReducer from "./issueMasterSlice";
+import uiReducer from "./uiSlice";
 
 export const store = configureStore({
   reducer: {
@@ -13,5 +14,6 @@ export const store = configureStore({
     vendorMaster: vendorMasterReducer,
     waxReceive: waxReceiveReducer,
     issueMaster: issueMasterReducer,
+    ui: uiReducer,
   },
 });

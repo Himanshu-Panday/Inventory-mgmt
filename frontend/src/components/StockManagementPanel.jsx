@@ -1,11 +1,26 @@
 import { useEffect, useState } from "react";
 
-import { createIssueMaster, listStockInDetails, listStockManagement } from "../api/mgmt";
+import useInfiniteScroll from "../hooks/useInfiniteScroll";
+import {
+  createIssueMaster,
+  listIssueMasters,
+  listStockInDetails,
+  listStockManagement,
+  updateIssueMaster,
+} from "../api/mgmt";
 
 const defaultForm = {
   out_weight: "",
   out_quantity: "",
   description: "",
+};
+
+const escapeCsv = (value) => {
+  const text = value === null || value === undefined ? "" : String(value);
+  if (/[",\n]/.test(text)) {
+    return `"${text.replace(/"/g, "\"\"")}"`;
+  }
+  return text;
 };
 
 const StockManagementPanel = () => {
@@ -17,24 +32,52 @@ const StockManagementPanel = () => {
   const [form, setForm] = useState(defaultForm);
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [editingIssue, setEditingIssue] = useState(null);
   const [viewOpen, setViewOpen] = useState(false);
   const [viewRows, setViewRows] = useState([]);
   const [viewTitle, setViewTitle] = useState("");
   const [viewLoading, setViewLoading] = useState(false);
+  const { visibleCount, sentinelRef } = useInfiniteScroll(records.length);
+  const visibleRecords = records.slice(0, visibleCount);
 
-  useEffect(() => {
+  const loadStock = () => {
     setLoading(true);
     listStockManagement()
       .then(setRecords)
       .catch(() => setError("Unable to load stock management."))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadStock();
   }, []);
 
-  const openIssueModal = (record) => {
+  const openIssueModal = async (record) => {
     setSelectedRecord(record);
     setForm(defaultForm);
     setFormError("");
+    setEditingIssue(null);
     setModalOpen(true);
+    try {
+      const issues = await listIssueMasters();
+      const existing = issues
+        .filter(
+          (issue) =>
+            String(issue.item) === String(record.item) &&
+            String(issue.size) === String(record.size),
+        )
+        .sort((a, b) => new Date(b.date_time) - new Date(a.date_time))[0];
+      if (existing) {
+        setEditingIssue(existing);
+        setForm({
+          out_weight: String(existing.out_weight ?? ""),
+          out_quantity: String(existing.out_quantity ?? ""),
+          description: existing.description || "",
+        });
+      }
+    } catch {
+      setEditingIssue(null);
+    }
   };
 
   const openViewModal = async (record) => {
@@ -56,6 +99,7 @@ const StockManagementPanel = () => {
     setSelectedRecord(null);
     setForm(defaultForm);
     setFormError("");
+    setEditingIssue(null);
   };
 
   const handleSubmit = async (event) => {
@@ -69,13 +113,19 @@ const StockManagementPanel = () => {
 
     setSubmitting(true);
     try {
-      await createIssueMaster({
+      const payload = {
         item: Number(selectedRecord.item),
         size: Number(selectedRecord.size),
         out_weight: Number(form.out_weight),
         out_quantity: Number(form.out_quantity),
         description: form.description,
-      });
+      };
+      if (editingIssue) {
+        await updateIssueMaster({ id: editingIssue.id, payload });
+      } else {
+        await createIssueMaster(payload);
+      }
+      loadStock();
       closeModal();
     } catch (requestError) {
       const apiMessage =
@@ -86,12 +136,59 @@ const StockManagementPanel = () => {
     }
   };
 
+  const exportToExcel = () => {
+    if (records.length === 0) return;
+    const headers = [
+      "Item Name",
+      "Size",
+      "In Weight",
+      "In Quantity",
+      "Out Weight",
+      "Out Quantity",
+      "Balance Weight",
+      "Balance Quantity",
+    ];
+    const rows = records.map((record) => [
+      record.item_name,
+      record.size_name,
+      record.in_weight,
+      record.in_quantity,
+      record.out_weight,
+      record.out_quantity,
+      record.balance_weight,
+      record.balance_quantity,
+    ]);
+    const csv = [
+      headers.map(escapeCsv).join(","),
+      ...rows.map((row) => row.map(escapeCsv).join(",")),
+    ].join("\n");
+    const blob = new Blob([`\ufeff${csv}`], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `stock-management-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="content-card">
       <div className="section-head">
         <div>
           <h2>Stock Management</h2>
           <p>Track in/out balances per item and size.</p>
+        </div>
+        <div className="action-group">
+          <button
+            type="button"
+            className="small-btn success"
+            onClick={exportToExcel}
+            disabled={records.length === 0}
+          >
+            Export to Excel
+          </button>
         </div>
       </div>
 
@@ -104,7 +201,6 @@ const StockManagementPanel = () => {
           <table className="records-table">
             <thead>
               <tr>
-                <th>Serial No.</th>
                 <th>Item Name</th>
                 <th>Size</th>
                 <th>In Weight</th>
@@ -119,14 +215,13 @@ const StockManagementPanel = () => {
             <tbody>
               {records.length === 0 ? (
                 <tr>
-                  <td colSpan="10" className="empty-row">
+                  <td colSpan="9" className="empty-row">
                     No stock records found.
                   </td>
                 </tr>
               ) : (
-                records.map((record) => (
+                visibleRecords.map((record) => (
                   <tr key={record.id}>
-                    <td>{record.id}</td>
                     <td>{record.item_name}</td>
                     <td>{record.size_name}</td>
                     <td>{record.in_weight}</td>
@@ -137,12 +232,20 @@ const StockManagementPanel = () => {
                     <td>{record.balance_quantity}</td>
                     <td>
                       <div className="action-group">
-                        <button type="button" className="small-btn" onClick={() => openIssueModal(record)}>
+                        <button
+                          type="button"
+                          className="small-btn"
+                          data-action="issue"
+                          data-icon="⇩"
+                          onClick={() => openIssueModal(record)}
+                        >
                           Issue
                         </button>
                         <button
                           type="button"
                           className="small-btn info"
+                          data-action="view"
+                          data-icon="⌕"
                           onClick={() => openViewModal(record)}
                         >
                           View
@@ -154,13 +257,14 @@ const StockManagementPanel = () => {
               )}
             </tbody>
           </table>
+          {visibleCount < records.length && <div ref={sentinelRef} className="inline-loader" />}
         </div>
       )}
 
       {modalOpen && selectedRecord && (
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal-card" onClick={(event) => event.stopPropagation()}>
-            <h3>Create Issue</h3>
+            <h3>{editingIssue ? "Update Issue" : "Create Issue"}</h3>
             <form className="form wax-form" onSubmit={handleSubmit}>
               <label>Item</label>
               <input type="text" value={selectedRecord.item_name} readOnly />
@@ -203,7 +307,7 @@ const StockManagementPanel = () => {
                   Cancel
                 </button>
                 <button type="submit" disabled={submitting}>
-                  {submitting ? "Saving..." : "Create"}
+                  {submitting ? "Saving..." : editingIssue ? "Update" : "Create"}
                 </button>
               </div>
             </form>

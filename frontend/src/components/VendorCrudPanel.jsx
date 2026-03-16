@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 
+import useInfiniteScroll from "../hooks/useInfiniteScroll";
 import {
   listVendorListHistory,
 } from "../api/mgmt";
@@ -38,6 +39,10 @@ const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
   const [historyLoading, setHistoryLoading] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const { visibleCount, sentinelRef } = useInfiniteScroll(records.length);
+  const visibleRecords = records.slice(0, visibleCount);
   useEffect(() => {
     dispatch(fetchVendors());
   }, [dispatch]);
@@ -115,6 +120,27 @@ const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
     setDeleteTarget(null);
   };
 
+  const toggleSelectAll = () => {
+    if (selectedIds.length === records.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(records.map((record) => record.id));
+    }
+  };
+
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((entry) => entry !== id) : [...prev, id],
+    );
+  };
+
+  const confirmBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    await Promise.all(selectedIds.map((id) => dispatch(removeVendor(id))));
+    setSelectedIds([]);
+    setBulkDeleteOpen(false);
+  };
+
   return (
     <div className="content-card">
       <div className="section-head">
@@ -122,9 +148,21 @@ const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
           <h2>Vendor Master</h2>
           <p>Manage vendor list records.</p>
         </div>
-        <button type="button" className="add-btn" onClick={openCreateModal} disabled={!canCreateUpdate}>
-          Add
-        </button>
+        <div className="action-group">
+          {selectedIds.length > 0 && (
+            <button
+              type="button"
+              className="small-btn danger"
+              onClick={() => setBulkDeleteOpen(true)}
+              disabled={!canDelete}
+            >
+              Delete ({selectedIds.length})
+            </button>
+          )}
+          <button type="button" className="add-btn" onClick={openCreateModal} disabled={!canCreateUpdate}>
+            Add
+          </button>
+        </div>
       </div>
 
       {error && <p className="error">{error}</p>}
@@ -136,6 +174,13 @@ const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
           <table className="records-table">
             <thead>
               <tr>
+                <th>
+                  <input
+                    type="checkbox"
+                    checked={records.length > 0 && selectedIds.length === records.length}
+                    onChange={toggleSelectAll}
+                  />
+                </th>
                 <th>Serial No.</th>
                 <th>Vendor Name</th>
                 <th>Created At</th>
@@ -146,13 +191,20 @@ const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
             <tbody>
               {records.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="empty-row">
+                  <td colSpan="7" className="empty-row">
                     No vendor records found.
                   </td>
                 </tr>
               ) : (
-                records.map((record) => (
+                visibleRecords.map((record) => (
                   <tr key={record.id} className="clickable-row" onClick={() => navigate(`/vendors/${record.id}`)}>
+                    <td onClick={(event) => event.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(record.id)}
+                        onChange={() => toggleSelect(record.id)}
+                      />
+                    </td>
                     <td>{record.id}</td>
                     <td>{record.vendor_name}</td>
                     <td>{formatDateTime(record.created_at)}</td>
@@ -162,6 +214,8 @@ const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
                         <button
                           type="button"
                           className="small-btn"
+                          data-action="edit"
+                          data-icon="✎"
                           onClick={(event) => {
                             event.stopPropagation();
                             openEditModal(record);
@@ -173,6 +227,8 @@ const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
                         <button
                           type="button"
                           className="small-btn info"
+                          data-action="history"
+                          data-icon="⏱"
                           onClick={(event) => {
                             event.stopPropagation();
                             openHistoryModal(record);
@@ -183,6 +239,8 @@ const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
                         <button
                           type="button"
                           className="small-btn danger"
+                          data-action="delete"
+                          data-icon="✖"
                           onClick={(event) => {
                             event.stopPropagation();
                             setDeleteTarget(record);
@@ -198,6 +256,7 @@ const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
               )}
             </tbody>
           </table>
+          {visibleCount < records.length && <div ref={sentinelRef} className="inline-loader" />}
         </div>
       )}
 
@@ -293,6 +352,23 @@ const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
                 Cancel
               </button>
               <button type="button" className="small-btn danger" onClick={confirmDelete}>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {bulkDeleteOpen && (
+        <div className="modal-overlay" onClick={() => setBulkDeleteOpen(false)}>
+          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+            <h3>Confirm Delete</h3>
+            <p>Are you sure you want to delete {selectedIds.length} records?</p>
+            <div className="modal-actions">
+              <button type="button" className="secondary-btn" onClick={() => setBulkDeleteOpen(false)}>
+                Cancel
+              </button>
+              <button type="button" className="small-btn danger" onClick={confirmBulkDelete}>
                 Delete
               </button>
             </div>

@@ -5,6 +5,10 @@ import { useDispatch, useSelector } from "react-redux";
 import { fetchWaxReceives } from "../store/waxReceiveSlice";
 import { fetchItems } from "../store/itemMasterSlice";
 import { fetchSizes } from "../store/sizeMasterSlice";
+import { useAuth } from "../components/AuthProvider";
+import useInfiniteScroll from "../hooks/useInfiniteScroll";
+import rudraLogo from "../assets/RUDRA_LOGO.png";
+import { setActiveTab } from "../store/uiSlice";
 import {
   createWaxReceiveLine,
   deleteWaxReceiveLine,
@@ -14,15 +18,35 @@ import {
   updateWaxReceiveLine,
 } from "../api/mgmt";
 
+const MASTER_TABS = [
+  { key: "vendor_master", label: "Vendor-Master" },
+  { key: "item_master", label: "Item-Master" },
+  { key: "size_master", label: "Size-Master" },
+  { key: "wax_receive", label: "Wax-Receive" },
+  { key: "issue_master", label: "Issue-Master" },
+  { key: "stock_management", label: "StockManagement" },
+];
+
+const API_ROOT = import.meta.env.VITE_API_ROOT || "http://127.0.0.1:8000";
+
 const formatDateTime = (value) => {
   if (!value) return "-";
   return new Date(value).toLocaleString();
+};
+
+const resolveImageUrl = (value) => {
+  if (!value) return "";
+  if (value.startsWith("http")) return value;
+  return `${API_ROOT}${value}`;
 };
 
 const WaxReceiveDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const { user, logout } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   const waxReceives = useSelector((state) => state.waxReceive.records);
   const items = useSelector((state) => state.itemMaster.records);
@@ -32,11 +56,13 @@ const WaxReceiveDetailPage = () => {
   const [lines, setLines] = useState([]);
   const [selectedItemId, setSelectedItemId] = useState("");
   const [form, setForm] = useState({ size: "", in_weight: "", in_quantity: "" });
+  const [imageFile, setImageFile] = useState(null);
   const [formError, setFormError] = useState("");
   const [loadingLines, setLoadingLines] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [lineModalOpen, setLineModalOpen] = useState(false);
   const [editingLine, setEditingLine] = useState(null);
+  const [viewImageUrl, setViewImageUrl] = useState("");
   const [lineHistoryOpen, setLineHistoryOpen] = useState(false);
   const [lineHistoryRows, setLineHistoryRows] = useState([]);
   const [lineHistoryTitle, setLineHistoryTitle] = useState("");
@@ -44,6 +70,33 @@ const WaxReceiveDetailPage = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteError, setDeleteError] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const { visibleCount, sentinelRef } = useInfiniteScroll(lines.length);
+  const visibleLines = lines.slice(0, visibleCount);
+
+  const permissionMap = useMemo(() => {
+    const map = new Map();
+    (user?.master_permissions || []).forEach((permission) => {
+      map.set(permission.master_name, permission);
+    });
+    return map;
+  }, [user]);
+
+  const navItems = useMemo(() => {
+    if (!user) return [];
+    if (user.role === "admin") {
+      return [...MASTER_TABS.map((item) => item.label), "User Management", "Deleted Records"];
+    }
+    return MASTER_TABS.filter((tab) => permissionMap.get(tab.key)?.can_read).map(
+      (tab) => tab.label,
+    );
+  }, [permissionMap, user]);
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login", { replace: true });
+  };
 
   useEffect(() => {
     if (waxReceives.length === 0) {
@@ -111,13 +164,15 @@ const WaxReceiveDetailPage = () => {
 
     setSubmitting(true);
     try {
-      const payload = {
-        wax_receive: Number(id),
-        item: Number(selectedItemId),
-        size: Number(form.size),
-        in_weight: Number(form.in_weight),
-        in_quantity: Number(form.in_quantity),
-      };
+      const payload = new FormData();
+      payload.append("wax_receive", String(id));
+      payload.append("item", String(selectedItemId));
+      payload.append("size", String(form.size));
+      payload.append("in_weight", String(form.in_weight));
+      payload.append("in_quantity", String(form.in_quantity));
+      if (imageFile) {
+        payload.append("image", imageFile);
+      }
       if (editingLine) {
         await updateWaxReceiveLine({ id: editingLine.id, payload });
       } else {
@@ -126,6 +181,7 @@ const WaxReceiveDetailPage = () => {
       const refreshed = await listWaxReceiveLines(id);
       setLines(refreshed);
       setForm({ size: "", in_weight: "", in_quantity: "" });
+      setImageFile(null);
       setEditingLine(null);
     } catch (requestError) {
       const apiMessage =
@@ -139,6 +195,7 @@ const WaxReceiveDetailPage = () => {
   const openLineModal = () => {
     setFormError("");
     setForm({ size: "", in_weight: "", in_quantity: "" });
+    setImageFile(null);
     setEditingLine(null);
     setLineModalOpen(true);
   };
@@ -151,6 +208,7 @@ const WaxReceiveDetailPage = () => {
       in_weight: String(line.in_weight),
       in_quantity: String(line.in_quantity),
     });
+    setImageFile(null);
     setFormError("");
     setLineModalOpen(true);
   };
@@ -159,6 +217,7 @@ const WaxReceiveDetailPage = () => {
     setLineModalOpen(false);
     setEditingLine(null);
     setForm({ size: "", in_weight: "", in_quantity: "" });
+    setImageFile(null);
   };
 
   const openLineHistoryModal = async (line) => {
@@ -192,20 +251,47 @@ const WaxReceiveDetailPage = () => {
     }
   };
 
+  const toggleSelectAll = () => {
+    if (selectedIds.length === lines.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(lines.map((line) => line.id));
+    }
+  };
 
-  if (!record) {
-    return (
-      <div className="content-card">
-        <h2>Wax Receive</h2>
-        <p>Record not found.</p>
-        <button type="button" className="small-btn" onClick={() => navigate(-1)}>
-          Back
-        </button>
-      </div>
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((entry) => entry !== id) : [...prev, id],
     );
-  }
+  };
 
-  return (
+  const confirmBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    setDeleting(true);
+    try {
+      await Promise.all(selectedIds.map((lineId) => deleteWaxReceiveLine(lineId)));
+      setLines((prev) => prev.filter((entry) => !selectedIds.includes(entry.id)));
+      setSelectedIds([]);
+      setBulkDeleteOpen(false);
+    } catch (requestError) {
+      const apiMessage =
+        requestError?.response?.data?.detail || "Unable to delete wax receive lines.";
+      setDeleteError(apiMessage);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+
+  const content = !record ? (
+    <div className="content-card">
+      <h2>Wax Receive</h2>
+      <p>Record not found.</p>
+      <button type="button" className="small-btn" onClick={() => navigate(-1)}>
+        Back
+      </button>
+    </div>
+  ) : (
     <div className="content-card">
       <div className="section-head">
         <div>
@@ -215,6 +301,15 @@ const WaxReceiveDetailPage = () => {
           </p>
         </div>
         <div className="item-toolbar">
+          {selectedIds.length > 0 && (
+            <button
+              type="button"
+              className="small-btn danger"
+              onClick={() => setBulkDeleteOpen(true)}
+            >
+              Delete ({selectedIds.length})
+            </button>
+          )}
           <button type="button" className="add-btn" onClick={openLineModal}>
             Add Line
           </button>
@@ -225,6 +320,13 @@ const WaxReceiveDetailPage = () => {
         <table className="records-table">
           <thead>
             <tr>
+              <th>
+                <input
+                  type="checkbox"
+                  checked={lines.length > 0 && selectedIds.length === lines.length}
+                  onChange={toggleSelectAll}
+                />
+              </th>
               <th>Item</th>
               <th>Size</th>
               <th>Weight</th>
@@ -237,19 +339,26 @@ const WaxReceiveDetailPage = () => {
           <tbody>
             {loadingLines ? (
               <tr>
-                <td colSpan="7" className="empty-row">
+                <td colSpan="8" className="empty-row">
                   Loading lines...
                 </td>
               </tr>
             ) : lines.length === 0 ? (
               <tr>
-                <td colSpan="7" className="empty-row">
+                <td colSpan="8" className="empty-row">
                   No lines yet.
                 </td>
               </tr>
             ) : (
-              lines.map((line) => (
+              visibleLines.map((line) => (
                 <tr key={line.id}>
+                  <td>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(line.id)}
+                      onChange={() => toggleSelect(line.id)}
+                    />
+                  </td>
                   <td>{line.item_name}</td>
                   <td>{line.size_name}</td>
                   <td>{line.in_weight}</td>
@@ -261,6 +370,8 @@ const WaxReceiveDetailPage = () => {
                       <button
                         type="button"
                         className="small-btn"
+                        data-action="edit"
+                        data-icon="✎"
                         onClick={() => openEditLineModal(line)}
                       >
                         Edit
@@ -268,13 +379,28 @@ const WaxReceiveDetailPage = () => {
                       <button
                         type="button"
                         className="small-btn info"
+                        data-action="history"
+                        data-icon="⏱"
                         onClick={() => openLineHistoryModal(line)}
                       >
                         History
                       </button>
                       <button
                         type="button"
+                        className="small-btn info"
+                        data-action="view"
+                        data-icon="👁"
+                        onClick={() => setViewImageUrl(line.image || "")}
+                        disabled={!line.image}
+                      >
+                        View
+                      </button>
+
+                      <button
+                        type="button"
                         className="small-btn danger"
+                        data-action="delete"
+                        data-icon="✖"
                         onClick={() => {
                           setDeleteError("");
                           setDeleteTarget(line);
@@ -289,6 +415,7 @@ const WaxReceiveDetailPage = () => {
             )}
           </tbody>
         </table>
+        {visibleCount < lines.length && <div ref={sentinelRef} className="inline-loader" />}
       </div>
 
       {lineModalOpen && (
@@ -351,6 +478,14 @@ const WaxReceiveDetailPage = () => {
               <label htmlFor="wax-amount">Amount</label>
               <input id="wax-amount" type="text" value={amountPreview} readOnly />
 
+              <label htmlFor="wax-image">Image</label>
+              <input
+                id="wax-image"
+                type="file"
+                accept="image/*"
+                onChange={(event) => setImageFile(event.target.files?.[0] || null)}
+              />
+
               {formError && <p className="error">{formError}</p>}
 
               <div className="modal-actions">
@@ -362,6 +497,24 @@ const WaxReceiveDetailPage = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {viewImageUrl && (
+        <div className="modal-overlay" onClick={() => setViewImageUrl("")}>
+          <div className="modal-card image-card" onClick={(event) => event.stopPropagation()}>
+            <h3>Wax Receive Line Image</h3>
+            <img
+              className="image-preview"
+              src={resolveImageUrl(viewImageUrl)}
+              alt="Wax receive line"
+            />
+            <div className="modal-actions">
+              <button type="button" className="secondary-btn" onClick={() => setViewImageUrl("")}>
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -444,8 +597,107 @@ const WaxReceiveDetailPage = () => {
           </div>
         </div>
       )}
+
+      {bulkDeleteOpen && (
+        <div className="modal-overlay" onClick={() => setBulkDeleteOpen(false)}>
+          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+            <h3>Confirm Delete</h3>
+            <p>Are you sure you want to delete {selectedIds.length} lines?</p>
+            {deleteError && <p className="error">{deleteError}</p>}
+            <div className="modal-actions">
+              <button type="button" className="secondary-btn" onClick={() => setBulkDeleteOpen(false)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="small-btn danger"
+                onClick={confirmBulkDelete}
+                disabled={deleting}
+              >
+                {deleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="dashboard-shell">
+      <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
+        <div className="sidebar-header">Modules</div>
+        <nav className="sidebar-nav">
+          {navItems.map((item) => (
+            <button
+              type="button"
+              key={item}
+              className={`nav-item ${item === "Wax-Receive" ? "active" : ""}`}
+              onClick={() => {
+                dispatch(setActiveTab(item));
+                navigate("/");
+                setSidebarOpen(false);
+              }}
+            >
+              {item}
+            </button>
+          ))}
+        </nav>
+      </aside>
+
+      <div
+        className={`sidebar-backdrop ${sidebarOpen ? "show" : ""}`}
+        onClick={() => setSidebarOpen(false)}
+      />
+
+      <section className="dashboard-main">
+        <header className="topbar">
+          <button
+            type="button"
+            className="hamburger"
+            aria-label="Toggle sidebar"
+            onClick={() => setSidebarOpen((prev) => !prev)}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+
+          <div className="topbar-logo">
+            <img src={rudraLogo} alt="Rudra Jewels" />
+          </div>
+
+          <div className="profile-wrap">
+            <button
+              type="button"
+              className="profile-btn"
+              onClick={() => setProfileOpen((prev) => !prev)}
+              aria-label="Profile"
+            />
+
+            {profileOpen && (
+              <div className="profile-card">
+                <h2>
+                  {`${user?.first_name || ""} ${user?.last_name || ""}`.trim() ||
+                    user?.email ||
+                    "Profile"}
+                </h2>
+                <p>Login successful. Welcome to inventory management.</p>
+                <div className="meta">
+                  <span>Email: {user?.email}</span>
+                  <span>Role: {user?.role}</span>
+                </div>
+                <button onClick={handleLogout}>Logout</button>
+              </div>
+            )}
+          </div>
+        </header>
+
+        {content}
+      </section>
     </div>
   );
 };
 
 export default WaxReceiveDetailPage;
+

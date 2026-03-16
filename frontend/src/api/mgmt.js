@@ -50,6 +50,8 @@ const setupAuth = () => {
 
 setupAuth();
 
+const isFormData = (payload) => payload instanceof FormData;
+
 mgmtApi.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -215,12 +217,18 @@ export const listWaxReceiveLines = async (waxReceiveId) => {
 };
 
 export const createWaxReceiveLine = async (payload) => {
-  const { data } = await mgmtApi.post("/wax-receive-lines/", payload);
+  const config = isFormData(payload)
+    ? { headers: { "Content-Type": "multipart/form-data" } }
+    : undefined;
+  const { data } = await mgmtApi.post("/wax-receive-lines/", payload, config);
   return data;
 };
 
 export const updateWaxReceiveLine = async ({ id, payload }) => {
-  const { data } = await mgmtApi.patch(`/wax-receive-lines/${id}/`, payload);
+  const config = isFormData(payload)
+    ? { headers: { "Content-Type": "multipart/form-data" } }
+    : undefined;
+  const { data } = await mgmtApi.patch(`/wax-receive-lines/${id}/`, payload, config);
   return data;
 };
 
@@ -281,4 +289,9 @@ export const listDeletedRecords = async (modelName) => {
 export const recoverDeletedRecord = async (id) => {
   const { data } = await mgmtApi.post(`/deleted-records/${id}/recover/`);
   return data;
+};
+
+export const deleteDeletedRecord = async (id) => {
+  await mgmtApi.delete(`/deleted-records/${id}/`);
+  return id;
 };

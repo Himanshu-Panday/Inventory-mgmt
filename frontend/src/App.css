@@ -258,6 +258,22 @@ button:disabled {
 
 .profile-btn {
   margin: 0;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  color: #0f2f55;
+  border: 1px solid #dbe6f3;
+}
+
+.profile-btn::before {
+  content: "👤";
+  font-size: 1.1rem;
+  line-height: 1;
 }
 
 .profile-card {
@@ -399,6 +415,17 @@ button:disabled {
 
 .history-card {
   width: min(760px, 100%);
+}
+
+.image-card {
+  width: min(720px, 100%);
+}
+
+.image-preview {
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  border: 1px solid #dbe6f3;
 }
 
 .modal-card h3 {
@@ -546,6 +573,45 @@ button:disabled {
 
   .add-btn {
     width: 100%;
+  }
+}
+
+@media (max-width: 720px) {
+  .records-table {
+    min-width: 100%;
+    width: 100%;
+    table-layout: fixed;
+  }
+
+  .records-table th,
+  .records-table td {
+    padding: 0.25rem 0.25rem;
+    font-size: 0.6rem;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 0;
+  }
+
+  .action-group {
+    gap: 0.35rem;
+  }
+
+  .small-btn[data-action] {
+    font-size: 0;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .small-btn[data-action]::before {
+    content: attr(data-icon);
+    font-size: 0.75rem;
+    line-height: 1;
   }
 }
 

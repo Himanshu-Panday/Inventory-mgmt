@@ -255,13 +255,21 @@ const UserManagementPanel = () => {
                     <td>{permissionSummary[user.id] || "No access assigned"}</td>
                     <td>
                       <div className="action-group">
-                        <button type="button" className="small-btn" onClick={() => openEditModal(user)}>
+                        <button
+                          type="button"
+                          className="small-btn"
+                          data-action="edit"
+                          data-icon="✎"
+                          onClick={() => openEditModal(user)}
+                        >
                           Edit
                         </button>
                         {user.is_active ? (
                           <button
                             type="button"
                             className="small-btn danger"
+                            data-action="deactivate"
+                            data-icon="⏻"
                             onClick={() => handleToggleActive(user, false)}
                             disabled={saving}
                           >
@@ -271,6 +279,8 @@ const UserManagementPanel = () => {
                           <button
                             type="button"
                             className="small-btn success"
+                            data-action="activate"
+                            data-icon="✔"
                             onClick={() => handleToggleActive(user, true)}
                             disabled={saving}
                           >

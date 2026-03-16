@@ -1,8 +1,10 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 
 import { useAuth } from "../components/AuthProvider";
 import rudraLogo from "../assets/RUDRA_LOGO.png";
+import { setActiveTab } from "../store/uiSlice";
 
 const MasterCrudPanel = lazy(() => import("../components/MasterCrudPanel"));
 const VendorCrudPanel = lazy(() => import("../components/VendorCrudPanel"));
@@ -24,6 +26,8 @@ const MASTER_TABS = [
 const HomePage = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const activeTab = useSelector((state) => state.ui.activeTab);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
 
@@ -43,13 +47,11 @@ const HomePage = () => {
     return MASTER_TABS.filter((tab) => permissionMap.get(tab.key)?.can_read).map((tab) => tab.label);
   }, [permissionMap, user]);
 
-  const [activeTab, setActiveTab] = useState(navItems[0] || "");
-
   useEffect(() => {
     if (!navItems.includes(activeTab)) {
-      setActiveTab(navItems[0] || "");
+      dispatch(setActiveTab(navItems[0] || ""));
     }
-  }, [activeTab, navItems]);
+  }, [activeTab, navItems, dispatch]);
 
   const handleLogout = () => {
     logout();
@@ -151,7 +153,7 @@ const HomePage = () => {
               key={item}
               className={`nav-item ${activeTab === item ? "active" : ""}`}
               onClick={() => {
-                setActiveTab(item);
+                dispatch(setActiveTab(item));
                 setSidebarOpen(false);
               }}
             >
@@ -188,13 +190,17 @@ const HomePage = () => {
               type="button"
               className="profile-btn"
               onClick={() => setProfileOpen((prev) => !prev)}
+              aria-label="Profile"
             >
-              Profile
             </button>
 
             {profileOpen && (
               <div className="profile-card">
-                <h2>Home</h2>
+                <h2>
+                  {`${user?.first_name || ""} ${user?.last_name || ""}`.trim() ||
+                    user?.email ||
+                    "Profile"}
+                </h2>
                 <p>Login successful. Welcome to inventory management.</p>
                 <div className="meta">
                   <span>Email: {user?.email}</span>

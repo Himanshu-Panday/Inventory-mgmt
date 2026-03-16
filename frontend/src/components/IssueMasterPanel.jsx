@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
+import useInfiniteScroll from "../hooks/useInfiniteScroll";
 import { fetchItems } from "../store/itemMasterSlice";
 import { fetchSizes } from "../store/sizeMasterSlice";
 import {
@@ -37,6 +38,18 @@ const IssueMasterPanel = ({ canCreateUpdate, canDelete }) => {
   const [historyTitle, setHistoryTitle] = useState("");
   const [historyLoading, setHistoryLoading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const { visibleCount, sentinelRef } = useInfiniteScroll(records.length);
+  const visibleRecords = records.slice(0, visibleCount);
+  const selectedItemId = form.item ? String(form.item) : "";
+  const selectedSizeId = form.size ? String(form.size) : "";
+  const duplicateRecord = records.find(
+    (record) =>
+      String(record.item) === selectedItemId && String(record.size) === selectedSizeId,
+  );
+  const isDuplicateSelection =
+    Boolean(duplicateRecord) && (!editingRecord || duplicateRecord.id !== editingRecord.id);
 
   useEffect(() => {
     dispatch(fetchIssueMasters());
@@ -128,6 +141,27 @@ const IssueMasterPanel = ({ canCreateUpdate, canDelete }) => {
     setDeleteTarget(null);
   };
 
+  const toggleSelectAll = () => {
+    if (selectedIds.length === records.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(records.map((record) => record.id));
+    }
+  };
+
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((entry) => entry !== id) : [...prev, id],
+    );
+  };
+
+  const confirmBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    await Promise.all(selectedIds.map((id) => dispatch(removeIssueMaster(id))));
+    setSelectedIds([]);
+    setBulkDeleteOpen(false);
+  };
+
   return (
     <div className="content-card">
       <div className="section-head">
@@ -135,9 +169,21 @@ const IssueMasterPanel = ({ canCreateUpdate, canDelete }) => {
           <h2>Issue Master</h2>
           <p>Record item issues.</p>
         </div>
-        <button type="button" className="add-btn" onClick={openModal} disabled={!canCreateUpdate}>
-          Add
-        </button>
+        <div className="action-group">
+          {selectedIds.length > 0 && (
+            <button
+              type="button"
+              className="small-btn danger"
+              onClick={() => setBulkDeleteOpen(true)}
+              disabled={!canDelete}
+            >
+              Delete ({selectedIds.length})
+            </button>
+          )}
+          <button type="button" className="add-btn" onClick={openModal} disabled={!canCreateUpdate}>
+            Add
+          </button>
+        </div>
       </div>
 
       {error && <p className="error">{error}</p>}
@@ -149,6 +195,13 @@ const IssueMasterPanel = ({ canCreateUpdate, canDelete }) => {
           <table className="records-table">
             <thead>
               <tr>
+                <th>
+                  <input
+                    type="checkbox"
+                    checked={records.length > 0 && selectedIds.length === records.length}
+                    onChange={toggleSelectAll}
+                  />
+                </th>
                 <th>ID</th>
                 <th>Date & Time</th>
                 <th>Item</th>
@@ -162,13 +215,20 @@ const IssueMasterPanel = ({ canCreateUpdate, canDelete }) => {
             <tbody>
               {records.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="empty-row">
+                  <td colSpan="9" className="empty-row">
                     No issue records found.
                   </td>
                 </tr>
               ) : (
-                records.map((record) => (
+                visibleRecords.map((record) => (
                   <tr key={record.id}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(record.id)}
+                        onChange={() => toggleSelect(record.id)}
+                      />
+                    </td>
                     <td>{record.id}</td>
                     <td>{formatDateTime(record.date_time)}</td>
                     <td>{record.item_name}</td>
@@ -181,6 +241,8 @@ const IssueMasterPanel = ({ canCreateUpdate, canDelete }) => {
                         <button
                           type="button"
                           className="small-btn"
+                          data-action="edit"
+                          data-icon="✎"
                           onClick={() => openEditModal(record)}
                           disabled={!canCreateUpdate}
                         >
@@ -189,6 +251,8 @@ const IssueMasterPanel = ({ canCreateUpdate, canDelete }) => {
                         <button
                           type="button"
                           className="small-btn info"
+                          data-action="history"
+                          data-icon="⏱"
                           onClick={() => openHistoryModal(record)}
                         >
                           History
@@ -196,6 +260,8 @@ const IssueMasterPanel = ({ canCreateUpdate, canDelete }) => {
                         <button
                           type="button"
                           className="small-btn danger"
+                          data-action="delete"
+                          data-icon="✖"
                           onClick={() => setDeleteTarget(record)}
                           disabled={!canDelete}
                         >
@@ -208,6 +274,7 @@ const IssueMasterPanel = ({ canCreateUpdate, canDelete }) => {
               )}
             </tbody>
           </table>
+          {visibleCount < records.length && <div ref={sentinelRef} className="inline-loader" />}
         </div>
       )}
 
@@ -275,12 +342,15 @@ const IssueMasterPanel = ({ canCreateUpdate, canDelete }) => {
               />
 
               {formError && <p className="error">{formError}</p>}
+              {isDuplicateSelection && (
+                <p className="error">Issue record for this item and size already exists.</p>
+              )}
 
               <div className="modal-actions">
                 <button type="button" className="secondary-btn" onClick={closeModal}>
                   Cancel
                 </button>
-                <button type="submit" disabled={submitting}>
+                <button type="submit" disabled={submitting || isDuplicateSelection}>
                   {submitting ? "Saving..." : editingRecord ? "Update" : "Create"}
                 </button>
               </div>
@@ -338,6 +408,23 @@ const IssueMasterPanel = ({ canCreateUpdate, canDelete }) => {
                 Cancel
               </button>
               <button type="button" className="small-btn danger" onClick={confirmDelete}>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {bulkDeleteOpen && (
+        <div className="modal-overlay" onClick={() => setBulkDeleteOpen(false)}>
+          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+            <h3>Confirm Delete</h3>
+            <p>Are you sure you want to delete {selectedIds.length} records?</p>
+            <div className="modal-actions">
+              <button type="button" className="secondary-btn" onClick={() => setBulkDeleteOpen(false)}>
+                Cancel
+              </button>
+              <button type="button" className="small-btn danger" onClick={confirmBulkDelete}>
                 Delete
               </button>
             </div>

@@ -3,7 +3,10 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 
 import { useAuth } from "../components/AuthProvider";
+import useInfiniteScroll from "../hooks/useInfiniteScroll";
 import { fetchItems } from "../store/itemMasterSlice";
+import rudraLogo from "../assets/RUDRA_LOGO.png";
+import { setActiveTab } from "../store/uiSlice";
 import {
   createVendorModel,
   deleteVendorModel,
@@ -13,6 +16,15 @@ import {
   listVendorModels,
   updateVendorModel,
 } from "../api/mgmt";
+
+const MASTER_TABS = [
+  { key: "vendor_master", label: "Vendor-Master" },
+  { key: "item_master", label: "Item-Master" },
+  { key: "size_master", label: "Size-Master" },
+  { key: "wax_receive", label: "Wax-Receive" },
+  { key: "issue_master", label: "Issue-Master" },
+  { key: "stock_management", label: "StockManagement" },
+];
 
 const formatDateTime = (value) => {
   if (!value) return "-";
@@ -28,7 +40,9 @@ const VendorDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const items = useSelector((state) => state.itemMaster.records);
 
   const [vendor, setVendor] = useState(null);
@@ -44,6 +58,28 @@ const VendorDetailPage = () => {
   const [historyTitle, setHistoryTitle] = useState("");
   const [historyLoading, setHistoryLoading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const { visibleCount, sentinelRef } = useInfiniteScroll(vendorItems.length);
+  const visibleVendorItems = vendorItems.slice(0, visibleCount);
+
+  const permissionMap = useMemo(() => {
+    const map = new Map();
+    (user?.master_permissions || []).forEach((permission) => {
+      map.set(permission.master_name, permission);
+    });
+    return map;
+  }, [user]);
+
+  const navItems = useMemo(() => {
+    if (!user) return [];
+    if (user.role === "admin") {
+      return [...MASTER_TABS.map((item) => item.label), "User Management", "Deleted Records"];
+    }
+    return MASTER_TABS.filter((tab) => permissionMap.get(tab.key)?.can_read).map(
+      (tab) => tab.label,
+    );
+  }, [permissionMap, user]);
 
   const permission = useMemo(() => {
     if (!user) return {};
@@ -57,6 +93,11 @@ const VendorDetailPage = () => {
 
   const canCreateUpdate = user?.role === "admin" || Boolean(permission.can_create_update);
   const canDelete = user?.role === "admin" || Boolean(permission.can_delete);
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login", { replace: true });
+  };
 
   useEffect(() => {
     if (items.length === 0) {
@@ -185,41 +226,67 @@ const VendorDetailPage = () => {
     setDeleteTarget(null);
   };
 
-  if (loading) {
-    return (
-      <div className="content-card">
-        <h2>Vendor Items</h2>
-        <p>Loading vendor details...</p>
-      </div>
-    );
-  }
+  const toggleSelectAll = () => {
+    if (selectedIds.length === vendorItems.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(vendorItems.map((record) => record.id));
+    }
+  };
 
-  if (!vendor) {
-    return (
-      <div className="content-card">
-        <h2>Vendor Items</h2>
-        <p>Vendor not found.</p>
-        <button type="button" className="small-btn" onClick={() => navigate(-1)}>
-          Back
-        </button>
-      </div>
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((entry) => entry !== id) : [...prev, id],
     );
-  }
+  };
 
-  return (
+  const confirmBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    await Promise.all(selectedIds.map((id) => deleteVendorModel(id)));
+    setVendorItems((prev) => prev.filter((record) => !selectedIds.includes(record.id)));
+    setSelectedIds([]);
+    setBulkDeleteOpen(false);
+  };
+
+  const content = loading ? (
     <div className="content-card">
-      <div className="section-head">
-        <div>
-          <h2>{vendor.vendor_name}</h2>
-          <p>Manage vendor item rates.</p>
-        </div>
-        <div className="action-group">
-          <button type="button" className="small-btn" onClick={() => navigate(-1)}>
-            Back
-          </button>
+      <h2>Vendor Items</h2>
+      <p>Loading vendor details...</p>
+    </div>
+  ) : !vendor ? (
+    <div className="content-card">
+      <h2>Vendor Items</h2>
+      <p>Vendor not found.</p>
+      <button type="button" className="small-btn" onClick={() => navigate(-1)}>
+        Back
+      </button>
+    </div>
+  ) : (
+    <div className="content-card">
+        <div className="section-head">
+          <div>
+            <h2>{vendor.vendor_name}</h2>
+            <p>Manage vendor item rates.</p>
+          </div>
+          <div className="action-group">
+            {selectedIds.length > 0 && (
+              <button
+                type="button"
+                className="small-btn danger"
+                onClick={() => setBulkDeleteOpen(true)}
+                disabled={!canDelete}
+              >
+                Delete ({selectedIds.length})
+              </button>
+            )}
+            <button type="button" className="small-btn" onClick={() => navigate(-1)}>
+              Back
+            </button>
           <button
             type="button"
             className="small-btn info"
+            data-action="history"
+            data-icon="⏱"
             onClick={() => openHistoryModal(vendor, "vendor")}
           >
             History
@@ -232,36 +299,50 @@ const VendorDetailPage = () => {
 
       <div className="table-wrap">
         <table className="records-table">
-          <thead>
-            <tr>
-              <th>Serial No.</th>
-              <th>Item Name</th>
-              <th>Rate</th>
-              <th>Date & Time</th>
-              <th>Created By</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {vendorItems.length === 0 ? (
-              <tr>
-                <td colSpan="6" className="empty-row">
-                  No vendor items found.
-                </td>
-              </tr>
-            ) : (
-              vendorItems.map((record) => (
-                <tr key={record.id}>
-                  <td>{record.id}</td>
-                  <td>{record.item_name_label}</td>
-                  <td>{record.rate}</td>
-                  <td>{formatDateTime(record.date_time)}</td>
-                  <td>{record.created_by_email || "-"}</td>
-                  <td>
+                <thead>
+                  <tr>
+                    <th>
+                      <input
+                        type="checkbox"
+                        checked={vendorItems.length > 0 && selectedIds.length === vendorItems.length}
+                        onChange={toggleSelectAll}
+                      />
+                    </th>
+                    <th>Item Name</th>
+                    <th>Rate</th>
+                    <th>Date & Time</th>
+                    <th>Created By</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {vendorItems.length === 0 ? (
+                    <tr>
+                      <td colSpan="6" className="empty-row">
+                        No vendor items found.
+                      </td>
+                    </tr>
+                  ) : (
+                    visibleVendorItems.map((record) => (
+                      <tr key={record.id}>
+                        <td>
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.includes(record.id)}
+                            onChange={() => toggleSelect(record.id)}
+                          />
+                        </td>
+                        <td>{record.item_name_label}</td>
+                        <td>{record.rate}</td>
+                        <td>{formatDateTime(record.date_time)}</td>
+                        <td>{record.created_by_email || "-"}</td>
+                        <td>
                     <div className="action-group">
                       <button
                         type="button"
                         className="small-btn"
+                        data-action="edit"
+                        data-icon="✎"
                         onClick={() => openItemEditModal(record)}
                         disabled={!canCreateUpdate}
                       >
@@ -270,6 +351,8 @@ const VendorDetailPage = () => {
                       <button
                         type="button"
                         className="small-btn info"
+                        data-action="history"
+                        data-icon="⏱"
                         onClick={() => openHistoryModal(record, "item")}
                       >
                         History
@@ -277,6 +360,8 @@ const VendorDetailPage = () => {
                       <button
                         type="button"
                         className="small-btn danger"
+                        data-action="delete"
+                        data-icon="✖"
                         onClick={() => setDeleteTarget(record)}
                         disabled={!canDelete}
                       >
@@ -289,6 +374,7 @@ const VendorDetailPage = () => {
             )}
           </tbody>
         </table>
+        {visibleCount < vendorItems.length && <div ref={sentinelRef} className="inline-loader" />}
       </div>
 
       {isItemModalOpen && (
@@ -397,6 +483,98 @@ const VendorDetailPage = () => {
           </div>
         </div>
       )}
+
+      {bulkDeleteOpen && (
+        <div className="modal-overlay" onClick={() => setBulkDeleteOpen(false)}>
+          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+            <h3>Confirm Delete</h3>
+            <p>Are you sure you want to delete {selectedIds.length} records?</p>
+            <div className="modal-actions">
+              <button type="button" className="secondary-btn" onClick={() => setBulkDeleteOpen(false)}>
+                Cancel
+              </button>
+              <button type="button" className="small-btn danger" onClick={confirmBulkDelete}>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="dashboard-shell">
+      <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
+        <div className="sidebar-header">Modules</div>
+        <nav className="sidebar-nav">
+          {navItems.map((item) => (
+            <button
+              type="button"
+              key={item}
+              className={`nav-item ${item === "Vendor-Master" ? "active" : ""}`}
+              onClick={() => {
+                dispatch(setActiveTab(item));
+                navigate("/");
+                setSidebarOpen(false);
+              }}
+            >
+              {item}
+            </button>
+          ))}
+        </nav>
+      </aside>
+
+      <div
+        className={`sidebar-backdrop ${sidebarOpen ? "show" : ""}`}
+        onClick={() => setSidebarOpen(false)}
+      />
+
+      <section className="dashboard-main">
+        <header className="topbar">
+          <button
+            type="button"
+            className="hamburger"
+            aria-label="Toggle sidebar"
+            onClick={() => setSidebarOpen((prev) => !prev)}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+
+          <div className="topbar-logo">
+            <img src={rudraLogo} alt="Rudra Jewels" />
+          </div>
+
+          <div className="profile-wrap">
+            <button
+              type="button"
+              className="profile-btn"
+              onClick={() => setProfileOpen((prev) => !prev)}
+              aria-label="Profile"
+            />
+
+            {profileOpen && (
+              <div className="profile-card">
+                <h2>
+                  {`${user?.first_name || ""} ${user?.last_name || ""}`.trim() ||
+                    user?.email ||
+                    "Profile"}
+                </h2>
+                <p>Login successful. Welcome to inventory management.</p>
+                <div className="meta">
+                  <span>Email: {user?.email}</span>
+                  <span>Role: {user?.role}</span>
+                </div>
+                <button onClick={handleLogout}>Logout</button>
+              </div>
+            )}
+          </div>
+        </header>
+
+        {content}
+      </section>
     </div>
   );
 };

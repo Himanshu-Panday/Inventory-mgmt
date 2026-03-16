@@ -109,6 +109,7 @@ class AuditLogSerializer(serializers.Serializer):
 class WaxReceiveLineSerializer(serializers.ModelSerializer):
     item_name = serializers.CharField(source="item.name", read_only=True)
     size_name = serializers.CharField(source="size.name", read_only=True)
+    image = serializers.ImageField(required=False, allow_null=True)
 
     class Meta:
         model = WaxReceiveLine
@@ -123,6 +124,7 @@ class WaxReceiveLineSerializer(serializers.ModelSerializer):
             "in_quantity",
             "rate",
             "amount",
+            "image",
         ]
         read_only_fields = ["id", "item_name", "size_name", "rate", "amount"]
 

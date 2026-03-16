@@ -1,11 +1,13 @@
-from rest_framework import permissions, viewsets
+from rest_framework import permissions, viewsets, mixins
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from auditlog.models import LogEntry
 from auditlog.context import set_actor
 from auth_mgmt.permissions import IsAdminRole
+from decimal import Decimal
 
 from .models import (
     DeletedRecord,
@@ -302,6 +304,7 @@ class WaxReceiveLineViewSet(viewsets.ModelViewSet):
     queryset = WaxReceiveLine.objects.select_related("wax_receive", "item", "size").all()
     serializer_class = WaxReceiveLineSerializer
     permission_classes = [permissions.IsAuthenticated, MasterAccessPermission]
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -373,9 +376,19 @@ class IssueMasterViewSet(viewsets.ModelViewSet):
     serializer_class = IssueMasterSerializer
     permission_classes = [permissions.IsAuthenticated, MasterAccessPermission]
 
-    def perform_create(self, serializer):
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        item = serializer.validated_data.get("item")
+        size = serializer.validated_data.get("size")
+        existing = IssueMaster.objects.filter(item=item, size=size).first()
         with set_actor(self.request.user):
-            serializer.save(created_by=self.request.user)
+            if existing:
+                # Update existing record instead of creating a duplicate
+                updated = serializer.update(existing, serializer.validated_data)
+                return Response(self.get_serializer(updated).data, status=status.HTTP_200_OK)
+            created = serializer.save(created_by=self.request.user)
+        return Response(self.get_serializer(created).data, status=status.HTTP_201_CREATED)
 
     def perform_update(self, serializer):
         with set_actor(self.request.user):
@@ -439,7 +452,9 @@ class StockManagementViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(payload)
 
 
-class DeletedRecordViewSet(viewsets.ReadOnlyModelViewSet):
+class DeletedRecordViewSet(
+    mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.DestroyModelMixin, viewsets.GenericViewSet
+):
     queryset = DeletedRecord.objects.select_related("deleted_by").all()
     serializer_class = DeletedRecordSerializer
     permission_classes = [permissions.IsAuthenticated, IsAdminRole]
@@ -485,6 +500,20 @@ class DeletedRecordViewSet(viewsets.ReadOnlyModelViewSet):
                     )
                 vendor = VendorList_Model.objects.filter(pk=vendor_id).first()
                 item = Item_Model.objects.filter(pk=item_id).first()
+                if not vendor and payload.get("vendor_name"):
+                    vendor = VendorList_Model.objects.filter(
+                        vendor_name=payload.get("vendor_name")
+                    ).first()
+                    if not vendor:
+                        vendor = VendorList_Model.objects.create(
+                            vendor_name=payload.get("vendor_name"), created_by=created_by
+                        )
+                if not item and payload.get("item_name_label"):
+                    item = Item_Model.objects.filter(name=payload.get("item_name_label")).first()
+                    if not item:
+                        item = Item_Model.objects.create(
+                            name=payload.get("item_name_label"), created_by=created_by
+                        )
                 if not vendor or not item:
                     return Response(
                         {"detail": "Vendor or item no longer exists."},
@@ -504,6 +533,11 @@ class DeletedRecordViewSet(viewsets.ReadOnlyModelViewSet):
                         {"detail": "Vendor no longer exists."},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
+                if WaxReceive.objects.filter(vendor=vendor).exists():
+                    return Response(
+                        {"detail": "Record already there and it will create conflict."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
                 obj = WaxReceive.objects.create(vendor=vendor, created_by=created_by)
                 lines = payload.get("lines") or []
                 for line in lines:
@@ -515,9 +549,9 @@ class DeletedRecordViewSet(viewsets.ReadOnlyModelViewSet):
                         wax_receive=obj,
                         item=item,
                         size=size,
-                        in_weight=line.get("in_weight") or 0,
-                        in_quantity=line.get("in_quantity") or 0,
-                        rate=line.get("rate") or 0,
+                        in_weight=Decimal(str(line.get("in_weight") or 0)),
+                        in_quantity=int(line.get("in_quantity") or 0),
+                        rate=Decimal(str(line.get("rate") or 0)),
                     )
             elif record.model_name == "issue_master":
                 item = Item_Model.objects.filter(pk=payload.get("item")).first()
@@ -548,8 +582,18 @@ class DeletedRecordViewSet(viewsets.ReadOnlyModelViewSet):
                             wax_receive = queryset.filter(date_time=wax_dt).first()
                         if not wax_receive:
                             wax_receive = queryset.first()
+                    if not wax_receive and vendor_name:
+                        vendor = VendorList_Model.objects.filter(vendor_name=vendor_name).first()
+                        if vendor:
+                            wax_receive = WaxReceive.objects.create(
+                                vendor=vendor, created_by=created_by
+                            )
                 item = Item_Model.objects.filter(pk=payload.get("item")).first()
+                if not item and payload.get("item_name"):
+                    item = Item_Model.objects.filter(name=payload.get("item_name")).first()
                 size = Size_Model.objects.filter(pk=payload.get("size")).first()
+                if not size and payload.get("size_name"):
+                    size = Size_Model.objects.filter(name=payload.get("size_name")).first()
                 if not wax_receive or not item or not size:
                     return Response(
                         {"detail": "Wax receive, item, or size no longer exists."},
@@ -559,9 +603,9 @@ class DeletedRecordViewSet(viewsets.ReadOnlyModelViewSet):
                     wax_receive=wax_receive,
                     item=item,
                     size=size,
-                    in_weight=payload.get("in_weight") or 0,
-                    in_quantity=payload.get("in_quantity") or 0,
-                    rate=payload.get("rate") or 0,
+                    in_weight=Decimal(str(payload.get("in_weight") or 0)),
+                    in_quantity=int(payload.get("in_quantity") or 0),
+                    rate=Decimal(str(payload.get("rate") or 0)),
                 )
             else:
                 return Response(
