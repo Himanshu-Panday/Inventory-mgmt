@@ -72,8 +72,20 @@ const WaxReceiveDetailPage = () => {
   const [deleting, setDeleting] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filterItemName, setFilterItemName] = useState("");
+  const [filterSizeName, setFilterSizeName] = useState("");
   const { visibleCount, sentinelRef } = useInfiniteScroll(lines.length);
-  const visibleLines = lines.slice(0, visibleCount);
+  const itemOptions = Array.from(new Set(lines.map((line) => line.item_name).filter(Boolean)));
+  const sizeOptions = Array.from(new Set(lines.map((line) => line.size_name).filter(Boolean)));
+  const filteredLines = lines.filter((line) => {
+    const itemMatch = filterItemName ? line.item_name === filterItemName : true;
+    const sizeMatch = filterSizeName ? line.size_name === filterSizeName : true;
+    return itemMatch && sizeMatch;
+  });
+  const { visibleCount: visibleCountFiltered, sentinelRef: sentinelRefFiltered } =
+    useInfiniteScroll(filteredLines.length);
+  const visibleLines = filteredLines.slice(0, visibleCountFiltered);
 
   const permissionMap = useMemo(() => {
     const map = new Map();
@@ -310,6 +322,13 @@ const WaxReceiveDetailPage = () => {
               Delete ({selectedIds.length})
             </button>
           )}
+          <button
+            type="button"
+            className="add-btn"
+            onClick={() => setFiltersOpen(true)}
+          >
+            Filters
+          </button>
           <button type="button" className="add-btn" onClick={openLineModal}>
             Add Line
           </button>
@@ -415,7 +434,9 @@ const WaxReceiveDetailPage = () => {
             )}
           </tbody>
         </table>
-        {visibleCount < lines.length && <div ref={sentinelRef} className="inline-loader" />}
+        {visibleCountFiltered < filteredLines.length && (
+          <div ref={sentinelRefFiltered} className="inline-loader" />
+        )}
       </div>
 
       {lineModalOpen && (
@@ -512,6 +533,51 @@ const WaxReceiveDetailPage = () => {
             />
             <div className="modal-actions">
               <button type="button" className="secondary-btn" onClick={() => setViewImageUrl("")}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {filtersOpen && (
+        <div className="modal-overlay" onClick={() => setFiltersOpen(false)}>
+          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+            <h3>Filters</h3>
+            <div className="filter-row">
+              <div className="filter-field">
+                <label htmlFor="wax-detail-filter-item">Item Name</label>
+                <select
+                  id="wax-detail-filter-item"
+                  value={filterItemName}
+                  onChange={(event) => setFilterItemName(event.target.value)}
+                >
+                  <option value="">All items</option>
+                  {itemOptions.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="filter-field">
+                <label htmlFor="wax-detail-filter-size">Size</label>
+                <select
+                  id="wax-detail-filter-size"
+                  value={filterSizeName}
+                  onChange={(event) => setFilterSizeName(event.target.value)}
+                >
+                  <option value="">All sizes</option>
+                  {sizeOptions.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="secondary-btn" onClick={() => setFiltersOpen(false)}>
                 Close
               </button>
             </div>

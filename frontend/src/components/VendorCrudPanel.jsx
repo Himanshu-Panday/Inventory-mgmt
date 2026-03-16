@@ -41,8 +41,25 @@ const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
-  const { visibleCount, sentinelRef } = useInfiniteScroll(records.length);
-  const visibleRecords = records.slice(0, visibleCount);
+  const [filterVendorName, setFilterVendorName] = useState("");
+  const [filterCreatedBy, setFilterCreatedBy] = useState("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const createdByOptions = Array.from(
+    new Set(records.map((record) => record.created_by_email).filter(Boolean)),
+  );
+  const filteredRecords = records.filter((record) => {
+    const vendorMatch = filterVendorName
+      ? record.vendor_name
+          ?.toLowerCase()
+          .includes(filterVendorName.trim().toLowerCase())
+      : true;
+    const createdMatch = filterCreatedBy
+      ? record.created_by_email === filterCreatedBy
+      : true;
+    return vendorMatch && createdMatch;
+  });
+  const { visibleCount, sentinelRef } = useInfiniteScroll(filteredRecords.length);
+  const visibleRecords = filteredRecords.slice(0, visibleCount);
   useEffect(() => {
     dispatch(fetchVendors());
   }, [dispatch]);
@@ -121,10 +138,10 @@ const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
   };
 
   const toggleSelectAll = () => {
-    if (selectedIds.length === records.length) {
+    if (selectedIds.length === filteredRecords.length) {
       setSelectedIds([]);
     } else {
-      setSelectedIds(records.map((record) => record.id));
+      setSelectedIds(filteredRecords.map((record) => record.id));
     }
   };
 
@@ -149,6 +166,13 @@ const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
           <p>Manage vendor list records.</p>
         </div>
         <div className="action-group">
+          <button
+            type="button"
+            className="small-btn info"
+            onClick={() => setFiltersOpen(true)}
+          >
+            Filters
+          </button>
           {selectedIds.length > 0 && (
             <button
               type="button"
@@ -167,6 +191,46 @@ const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
 
       {error && <p className="error">{error}</p>}
 
+      {filtersOpen && (
+        <div className="modal-overlay" onClick={() => setFiltersOpen(false)}>
+          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+            <h3>Filters</h3>
+            <div className="filter-row">
+              <div className="filter-field">
+                <label htmlFor="vendor-filter-name">Vendor Name</label>
+                <input
+                  id="vendor-filter-name"
+                  type="text"
+                  value={filterVendorName}
+                  onChange={(event) => setFilterVendorName(event.target.value)}
+                  placeholder="Search vendor name"
+                />
+              </div>
+              <div className="filter-field">
+                <label htmlFor="vendor-filter-created">Created By</label>
+                <select
+                  id="vendor-filter-created"
+                  value={filterCreatedBy}
+                  onChange={(event) => setFilterCreatedBy(event.target.value)}
+                >
+                  <option value="">All creators</option>
+                  {createdByOptions.map((email) => (
+                    <option key={email} value={email}>
+                      {email}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="secondary-btn" onClick={() => setFiltersOpen(false)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <p>Loading vendors...</p>
       ) : (
@@ -177,7 +241,10 @@ const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
                 <th>
                   <input
                     type="checkbox"
-                    checked={records.length > 0 && selectedIds.length === records.length}
+                    checked={
+                      filteredRecords.length > 0 &&
+                      selectedIds.length === filteredRecords.length
+                    }
                     onChange={toggleSelectAll}
                   />
                 </th>
@@ -189,7 +256,7 @@ const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
               </tr>
             </thead>
             <tbody>
-              {records.length === 0 ? (
+              {filteredRecords.length === 0 ? (
                 <tr>
                   <td colSpan="7" className="empty-row">
                     No vendor records found.
@@ -256,7 +323,9 @@ const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
               )}
             </tbody>
           </table>
-          {visibleCount < records.length && <div ref={sentinelRef} className="inline-loader" />}
+          {visibleCount < filteredRecords.length && (
+            <div ref={sentinelRef} className="inline-loader" />
+          )}
         </div>
       )}
 

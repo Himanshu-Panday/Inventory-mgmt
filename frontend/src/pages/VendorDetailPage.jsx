@@ -60,8 +60,24 @@ const VendorDetailPage = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filterItemName, setFilterItemName] = useState("");
+  const [filterCreatedBy, setFilterCreatedBy] = useState("");
   const { visibleCount, sentinelRef } = useInfiniteScroll(vendorItems.length);
-  const visibleVendorItems = vendorItems.slice(0, visibleCount);
+  const itemNameOptions = Array.from(
+    new Set(vendorItems.map((record) => record.item_name_label).filter(Boolean)),
+  );
+  const createdByOptions = Array.from(
+    new Set(vendorItems.map((record) => record.created_by_email).filter(Boolean)),
+  );
+  const filteredVendorItems = vendorItems.filter((record) => {
+    const itemMatch = filterItemName ? record.item_name_label === filterItemName : true;
+    const createdMatch = filterCreatedBy ? record.created_by_email === filterCreatedBy : true;
+    return itemMatch && createdMatch;
+  });
+  const { visibleCount: visibleCountFiltered, sentinelRef: sentinelRefFiltered } =
+    useInfiniteScroll(filteredVendorItems.length);
+  const visibleVendorItems = filteredVendorItems.slice(0, visibleCountFiltered);
 
   const permissionMap = useMemo(() => {
     const map = new Map();
@@ -269,6 +285,13 @@ const VendorDetailPage = () => {
             <p>Manage vendor item rates.</p>
           </div>
           <div className="action-group">
+            <button
+              type="button"
+              className="small-btn info"
+              onClick={() => setFiltersOpen(true)}
+            >
+              Filters
+            </button>
             {selectedIds.length > 0 && (
               <button
                 type="button"
@@ -374,7 +397,9 @@ const VendorDetailPage = () => {
             )}
           </tbody>
         </table>
-        {visibleCount < vendorItems.length && <div ref={sentinelRef} className="inline-loader" />}
+        {visibleCountFiltered < filteredVendorItems.length && (
+          <div ref={sentinelRefFiltered} className="inline-loader" />
+        )}
       </div>
 
       {isItemModalOpen && (
@@ -460,6 +485,51 @@ const VendorDetailPage = () => {
             )}
             <div className="modal-actions">
               <button type="button" className="secondary-btn" onClick={() => setHistoryOpen(false)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {filtersOpen && (
+        <div className="modal-overlay" onClick={() => setFiltersOpen(false)}>
+          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+            <h3>Filters</h3>
+            <div className="filter-row">
+              <div className="filter-field">
+                <label htmlFor="vendor-detail-filter-item">Item Name</label>
+                <select
+                  id="vendor-detail-filter-item"
+                  value={filterItemName}
+                  onChange={(event) => setFilterItemName(event.target.value)}
+                >
+                  <option value="">All items</option>
+                  {itemNameOptions.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="filter-field">
+                <label htmlFor="vendor-detail-filter-created">Created By</label>
+                <select
+                  id="vendor-detail-filter-created"
+                  value={filterCreatedBy}
+                  onChange={(event) => setFilterCreatedBy(event.target.value)}
+                >
+                  <option value="">All creators</option>
+                  {createdByOptions.map((email) => (
+                    <option key={email} value={email}>
+                      {email}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="secondary-btn" onClick={() => setFiltersOpen(false)}>
                 Close
               </button>
             </div>

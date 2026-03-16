@@ -27,8 +27,18 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [filterVendorName, setFilterVendorName] = useState("");
   const { visibleCount, sentinelRef } = useInfiniteScroll(records.length);
-  const visibleRecords = records.slice(0, visibleCount);
+  const filteredRecords = records.filter((record) =>
+    filterVendorName
+      ? record.vendor_name
+          ?.toLowerCase()
+          .includes(filterVendorName.trim().toLowerCase())
+      : true,
+  );
+  const { visibleCount: visibleCountFiltered, sentinelRef: sentinelRefFiltered } =
+    useInfiniteScroll(filteredRecords.length);
+  const visibleRecords = filteredRecords.slice(0, visibleCountFiltered);
   const selectedVendorId = vendorId ? String(vendorId) : "";
   const duplicateRecord = records.find(
     (record) => String(record.vendor) === selectedVendorId,
@@ -110,10 +120,10 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
   };
 
   const toggleSelectAll = () => {
-    if (selectedIds.length === records.length) {
+    if (selectedIds.length === filteredRecords.length) {
       setSelectedIds([]);
     } else {
-      setSelectedIds(records.map((record) => record.id));
+      setSelectedIds(filteredRecords.map((record) => record.id));
     }
   };
 
@@ -138,6 +148,16 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
           <p>Create wax receive entries for vendors.</p>
         </div>
         <div className="action-group">
+          <div className="filter-field compact">
+            <label htmlFor="wax-filter-vendor">Search Record</label>
+            <input
+              id="wax-filter-vendor"
+              type="text"
+              value={filterVendorName}
+              onChange={(event) => setFilterVendorName(event.target.value)}
+              placeholder="Search"
+            />
+          </div>
           {selectedIds.length > 0 && (
             <button
               type="button"
@@ -166,7 +186,10 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
                 <th>
                   <input
                     type="checkbox"
-                    checked={records.length > 0 && selectedIds.length === records.length}
+                    checked={
+                      filteredRecords.length > 0 &&
+                      selectedIds.length === filteredRecords.length
+                    }
                     onChange={toggleSelectAll}
                   />
                 </th>
@@ -180,7 +203,7 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
               </tr>
             </thead>
             <tbody>
-              {records.length === 0 ? (
+              {filteredRecords.length === 0 ? (
                 <tr>
                   <td colSpan="8" className="empty-row">
                     No wax receive records found.
@@ -253,7 +276,9 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
               )}
             </tbody>
           </table>
-          {visibleCount < records.length && <div ref={sentinelRef} className="inline-loader" />}
+          {visibleCountFiltered < filteredRecords.length && (
+            <div ref={sentinelRefFiltered} className="inline-loader" />
+          )}
         </div>
       )}
 
