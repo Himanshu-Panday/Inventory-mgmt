@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../components/AuthProvider";
+import rudraLogo from "../assets/RUDRA_LOGO.png";
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -38,37 +39,48 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="page-shell">
-      <div className="card">
-        <h1>Login</h1>
-        <p>Use your Django auth account to continue.</p>
-        <form onSubmit={onSubmit} className="form">
-          <label htmlFor="email">Email</label>
-          <input
-            id="email"
-            type="email"
-            name="email"
-            value={form.email}
-            onChange={onChange}
-            required
-          />
+    <div className="login-shell">
+      <div className="login-panel">
+        <div className="login-brand">
+          <img src={rudraLogo} alt="Rudra Jewels" />
+          <div>
+            <h1>Inventory Management</h1>
+            <p>Track your master records, stock, and production flow in one place.</p>
+          </div>
+        </div>
+        <div className="login-card">
+          <div className="login-header">
+            <h2>Welcome back</h2>
+            <p>Please sign in to continue.</p>
+          </div>
+          <form onSubmit={onSubmit} className="form">
+            <label htmlFor="email">Email</label>
+            <input
+              id="email"
+              type="email"
+              name="email"
+              value={form.email}
+              onChange={onChange}
+              required
+            />
 
-          <label htmlFor="password">Password</label>
-          <input
-            id="password"
-            type="password"
-            name="password"
-            value={form.password}
-            onChange={onChange}
-            required
-          />
+            <label htmlFor="password">Password</label>
+            <input
+              id="password"
+              type="password"
+              name="password"
+              value={form.password}
+              onChange={onChange}
+              required
+            />
 
-          {error && <p className="error">{error}</p>}
+            {error && <p className="error">{error}</p>}
 
-          <button type="submit" disabled={submitting}>
-            {submitting ? "Signing in..." : "Sign in"}
-          </button>
-        </form>
+            <button type="submit" className="login-submit" disabled={submitting}>
+              {submitting ? "Signing in..." : "Sign in"}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );

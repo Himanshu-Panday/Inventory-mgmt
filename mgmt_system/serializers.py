@@ -109,7 +109,7 @@ class AuditLogSerializer(serializers.Serializer):
 class WaxReceiveLineSerializer(serializers.ModelSerializer):
     item_name = serializers.CharField(source="item.name", read_only=True)
     size_name = serializers.CharField(source="size.name", read_only=True)
-    image = serializers.ImageField(required=False, allow_null=True)
+    image = serializers.SerializerMethodField()
 
     class Meta:
         model = WaxReceiveLine
@@ -128,6 +128,14 @@ class WaxReceiveLineSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "item_name", "size_name", "rate", "amount"]
 
+    def get_image(self, obj):
+        request = self.context.get("request")
+        if obj.image:
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            return obj.image.url
+        return None
+    
 
 class WaxReceiveSerializer(serializers.ModelSerializer):
     vendor_name = serializers.CharField(source="vendor.vendor_name", read_only=True)

@@ -5,6 +5,73 @@
   padding: 1.5rem;
 }
 
+.login-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: radial-gradient(circle at top, #f2f6fb 0%, #e2e9f3 55%, #d8e3f0 100%);
+}
+
+.login-panel {
+  width: min(980px, 100%);
+  background: #ffffff;
+  border-radius: 24px;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(280px, 1.05fr) minmax(320px, 1fr);
+  box-shadow: 0 24px 50px rgba(9, 26, 58, 0.18);
+}
+
+.login-brand {
+  background: linear-gradient(140deg, #0f2f55 0%, #173a66 45%, #1e4e8a 100%);
+  color: #ffffff;
+  padding: 2.4rem;
+  display: grid;
+  gap: 1.6rem;
+  align-content: center;
+}
+
+.login-brand img {
+  width: 190px;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.login-brand h1 {
+  margin: 0 0 0.6rem;
+  font-size: 2rem;
+}
+
+.login-brand p {
+  margin: 0;
+  color: #d6e4f5;
+  line-height: 1.6;
+}
+
+.login-card {
+  padding: 2.4rem;
+  display: grid;
+  gap: 1.5rem;
+  align-content: center;
+}
+
+.login-header h2 {
+  margin: 0 0 0.4rem;
+  font-size: 1.6rem;
+  color: #0f2f55;
+}
+
+.login-header p {
+  margin: 0;
+  color: #4a678a;
+}
+
+.login-submit {
+  margin-top: 0.8rem;
+  width: 100%;
+}
+
 .loader-card {
   width: min(360px, 100%);
   background: #ffffff;
@@ -587,6 +654,15 @@ button:disabled {
 }
 
 @media (max-width: 900px) {
+  .login-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .login-brand {
+    text-align: center;
+    justify-items: center;
+  }
+
   .dashboard-shell {
     position: relative;
   }
