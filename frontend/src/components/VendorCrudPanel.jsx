@@ -183,7 +183,12 @@ const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
               Delete ({selectedIds.length})
             </button>
           )}
-          <button type="button" className="add-btn" onClick={openCreateModal} disabled={!canCreateUpdate}>
+          <button
+            type="button"
+            className="add-btn"
+            onClick={() => navigate("/vendors/new")}
+            disabled={!canCreateUpdate}
+          >
             Add
           </button>
         </div>

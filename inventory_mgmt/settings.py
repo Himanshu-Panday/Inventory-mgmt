@@ -12,9 +12,22 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from datetime import timedelta
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load .env if present (simple parser to avoid extra dependency).
+ENV_FILE = BASE_DIR / ".env"
+if ENV_FILE.exists():
+    for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        os.environ.setdefault(key, value)
 
 
 # Quick-start development settings - unsuitable for production
@@ -26,7 +39,7 @@ SECRET_KEY = 'django-insecure-c8_g=@=%6i*9ydu+i2xnh4msll&t=%#z&-iqx7k)81cgd%5n*l
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -81,13 +94,26 @@ WSGI_APPLICATION = 'inventory_mgmt.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
+USE_POSTGRES = os.getenv("USE_POSTGRES") == "1"
 
+if USE_POSTGRES:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv("POSTGRES_DB", "inv_mgmt"),
+            "USER": os.getenv("POSTGRES_USER", "admin"),
+            "PASSWORD": os.getenv("POSTGRES_PASSWORD", "Himanshu@123"),
+            "HOST": os.getenv("POSTGRES_HOST", "139.59.52.250"),
+            "PORT": os.getenv("POSTGRES_PORT", "5432"),
+        }
+    }
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators

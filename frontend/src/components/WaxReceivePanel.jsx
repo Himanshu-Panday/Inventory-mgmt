@@ -39,24 +39,12 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
   const { visibleCount: visibleCountFiltered, sentinelRef: sentinelRefFiltered } =
     useInfiniteScroll(filteredRecords.length);
   const visibleRecords = filteredRecords.slice(0, visibleCountFiltered);
-  const selectedVendorId = vendorId ? String(vendorId) : "";
-  const duplicateRecord = records.find(
-    (record) => String(record.vendor) === selectedVendorId,
-  );
-  const isDuplicateVendor =
-    Boolean(duplicateRecord) && (!editingRecord || duplicateRecord.id !== editingRecord.id);
 
   useEffect(() => {
     dispatch(fetchWaxReceives());
     listVendorLists().then(setVendors).catch(() => setVendors([]));
   }, [dispatch]);
 
-  const openModal = () => {
-    setEditingRecord(null);
-    setVendorId("");
-    setFormError("");
-    setModalOpen(true);
-  };
 
   const openEditModal = (record) => {
     setEditingRecord(record);
@@ -168,7 +156,12 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
               Delete ({selectedIds.length})
             </button>
           )}
-          <button type="button" className="add-btn" onClick={openModal} disabled={!canCreateUpdate}>
+          <button
+            type="button"
+            className="add-btn"
+            onClick={() => navigate("/wax-receives/new")}
+            disabled={!canCreateUpdate}
+          >
             Add
           </button>
         </div>
@@ -285,7 +278,7 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
       {modalOpen && (
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal-card" onClick={(event) => event.stopPropagation()}>
-            <h3>{editingRecord ? "Edit Wax Receive" : "Create Wax Receive"}</h3>
+            <h3>Edit Wax Receive</h3>
             <form className="form" onSubmit={handleSubmit}>
               <label htmlFor="wax-vendor">Vendor Name</label>
               <select
@@ -303,14 +296,13 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
               </select>
 
               {formError && <p className="error">{formError}</p>}
-              {isDuplicateVendor && <p className="error">This vendor already has a wax receive.</p>}
 
               <div className="modal-actions">
                 <button type="button" className="secondary-btn" onClick={closeModal}>
                   Cancel
                 </button>
-                <button type="submit" disabled={submitting || isDuplicateVendor}>
-                  {submitting ? "Saving..." : editingRecord ? "Update" : "Create"}
+                <button type="submit" disabled={submitting}>
+                  {submitting ? "Saving..." : "Update"}
                 </button>
               </div>
             </form>

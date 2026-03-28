@@ -8,7 +8,12 @@ import "./App.css";
 const HomePage = lazy(() => import("./pages/HomePage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const WaxReceiveDetailPage = lazy(() => import("./pages/WaxReceiveDetailPage"));
+const WaxReceiveCreatePage = lazy(() => import("./pages/WaxReceiveCreatePage"));
+const WaxReceiveLineCreatePage = lazy(() => import("./pages/WaxReceiveLineCreatePage"));
+const VendorCreatePage = lazy(() => import("./pages/VendorCreatePage"));
+const VendorItemCreatePage = lazy(() => import("./pages/VendorItemCreatePage"));
 const VendorDetailPage = lazy(() => import("./pages/VendorDetailPage"));
+const IssueMasterCreatePage = lazy(() => import("./pages/IssueMasterCreatePage"));
 
 function App() {
   return (
@@ -38,6 +43,22 @@ function App() {
             }
           />
           <Route
+            path="/wax-receives/new"
+            element={
+              <ProtectedRoute>
+                <WaxReceiveCreatePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/wax-receives/:id/lines/new"
+            element={
+              <ProtectedRoute>
+                <WaxReceiveLineCreatePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/wax-receives/:id"
             element={
               <ProtectedRoute>
@@ -46,10 +67,34 @@ function App() {
             }
           />
           <Route
+            path="/vendors/new"
+            element={
+              <ProtectedRoute>
+                <VendorCreatePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/vendors/:id"
             element={
               <ProtectedRoute>
                 <VendorDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/vendors/:id/items/new"
+            element={
+              <ProtectedRoute>
+                <VendorItemCreatePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/issue-masters/new"
+            element={
+              <ProtectedRoute>
+                <IssueMasterCreatePage />
               </ProtectedRoute>
             }
           />

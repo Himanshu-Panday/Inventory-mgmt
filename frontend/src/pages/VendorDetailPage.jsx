@@ -314,7 +314,12 @@ const VendorDetailPage = () => {
           >
             History
           </button>
-          <button type="button" className="add-btn" onClick={openItemCreateModal} disabled={!canCreateUpdate}>
+          <button
+            type="button"
+            className="add-btn"
+            onClick={() => navigate(`/vendors/${id}/items/new`)}
+            disabled={!canCreateUpdate}
+          >
             Add
           </button>
         </div>

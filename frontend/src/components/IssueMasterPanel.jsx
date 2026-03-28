@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 
 import useInfiniteScroll from "../hooks/useInfiniteScroll";
@@ -19,6 +20,7 @@ const formatDateTime = (value) => {
 
 const IssueMasterPanel = ({ canCreateUpdate, canDelete }) => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { records, loading, submitting, error } = useSelector((state) => state.issueMaster);
   const items = useSelector((state) => state.itemMaster.records);
   const sizes = useSelector((state) => state.sizeMaster.records);
@@ -180,7 +182,12 @@ const IssueMasterPanel = ({ canCreateUpdate, canDelete }) => {
               Delete ({selectedIds.length})
             </button>
           )}
-          <button type="button" className="add-btn" onClick={openModal} disabled={!canCreateUpdate}>
+          <button
+            type="button"
+            className="add-btn"
+            onClick={() => navigate("/issue-masters/new")}
+            disabled={!canCreateUpdate}
+          >
             Add
           </button>
         </div>

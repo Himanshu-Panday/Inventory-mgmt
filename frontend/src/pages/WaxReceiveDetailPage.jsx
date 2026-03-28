@@ -329,7 +329,11 @@ const WaxReceiveDetailPage = () => {
           >
             Filters
           </button>
-          <button type="button" className="add-btn" onClick={openLineModal}>
+          <button
+            type="button"
+            className="add-btn"
+            onClick={() => navigate(`/wax-receives/${id}/lines/new`)}
+          >
             Add Line
           </button>
         </div>
