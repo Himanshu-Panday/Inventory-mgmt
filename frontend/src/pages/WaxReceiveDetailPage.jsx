@@ -3,19 +3,14 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 
 import { fetchWaxReceives } from "../store/waxReceiveSlice";
-import { fetchItems } from "../store/itemMasterSlice";
-import { fetchSizes } from "../store/sizeMasterSlice";
 import { useAuth } from "../components/AuthProvider";
 import useInfiniteScroll from "../hooks/useInfiniteScroll";
 import rudraLogo from "../assets/RUDRA_LOGO.png";
 import { setActiveTab } from "../store/uiSlice";
 import {
-  createWaxReceiveLine,
   deleteWaxReceiveLine,
-  listVendorModels,
   listWaxReceiveLineHistory,
   listWaxReceiveLines,
-  updateWaxReceiveLine,
 } from "../api/mgmt";
 
 const MASTER_TABS = [
@@ -49,19 +44,8 @@ const WaxReceiveDetailPage = () => {
   const [profileOpen, setProfileOpen] = useState(false);
 
   const waxReceives = useSelector((state) => state.waxReceive.records);
-  const items = useSelector((state) => state.itemMaster.records);
-  const sizes = useSelector((state) => state.sizeMaster.records);
-
-  const [vendorItems, setVendorItems] = useState([]);
   const [lines, setLines] = useState([]);
-  const [selectedItemId, setSelectedItemId] = useState("");
-  const [form, setForm] = useState({ size: "", in_weight: "", in_quantity: "" });
-  const [imageFile, setImageFile] = useState(null);
-  const [formError, setFormError] = useState("");
   const [loadingLines, setLoadingLines] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [lineModalOpen, setLineModalOpen] = useState(false);
-  const [editingLine, setEditingLine] = useState(null);
   const [viewImageUrl, setViewImageUrl] = useState("");
   const [lineHistoryOpen, setLineHistoryOpen] = useState(false);
   const [lineHistoryRows, setLineHistoryRows] = useState([]);
@@ -114,13 +98,7 @@ const WaxReceiveDetailPage = () => {
     if (waxReceives.length === 0) {
       dispatch(fetchWaxReceives());
     }
-    if (items.length === 0) {
-      dispatch(fetchItems());
-    }
-    if (sizes.length === 0) {
-      dispatch(fetchSizes());
-    }
-  }, [dispatch, waxReceives.length, items.length, sizes.length]);
+  }, [dispatch, waxReceives.length]);
 
   useEffect(() => {
     setLoadingLines(true);
@@ -135,102 +113,7 @@ const WaxReceiveDetailPage = () => {
     [waxReceives, id],
   );
 
-  useEffect(() => {
-    if (!record?.vendor) {
-      setVendorItems([]);
-      return;
-    }
-    listVendorModels({ vendorId: record.vendor })
-      .then(setVendorItems)
-      .catch(() => setVendorItems([]));
-  }, [record?.vendor]);
-
-  const vendorItemOptions = useMemo(
-    () =>
-      vendorItems.map((vendor) => ({
-        id: vendor.item_name,
-        label: vendor.item_name_label,
-        rate: vendor.rate,
-      })),
-    [vendorItems],
-  );
-
-  const rate = useMemo(() => {
-    const match = vendorItemOptions.find((item) => String(item.id) === String(selectedItemId));
-    return match?.rate ?? 0;
-  }, [vendorItemOptions, selectedItemId]);
-
-  const amountPreview = useMemo(() => {
-    const weight = Number(form.in_weight || 0);
-    return (weight * rate).toFixed(2);
-  }, [form.in_weight, rate]);
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setFormError("");
-
-    if (!selectedItemId || !form.size || !form.in_weight || !form.in_quantity) {
-      setFormError("Item, size, weight and quantity are required.");
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const payload = new FormData();
-      payload.append("wax_receive", String(id));
-      payload.append("item", String(selectedItemId));
-      payload.append("size", String(form.size));
-      payload.append("in_weight", String(form.in_weight));
-      payload.append("in_quantity", String(form.in_quantity));
-      if (imageFile) {
-        payload.append("image", imageFile);
-      }
-      if (editingLine) {
-        await updateWaxReceiveLine({ id: editingLine.id, payload });
-      } else {
-        await createWaxReceiveLine(payload);
-      }
-      const refreshed = await listWaxReceiveLines(id);
-      setLines(refreshed);
-      setForm({ size: "", in_weight: "", in_quantity: "" });
-      setImageFile(null);
-      setEditingLine(null);
-    } catch (requestError) {
-      const apiMessage =
-        requestError?.response?.data?.detail || "Unable to save wax receive line.";
-      setFormError(apiMessage);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const openLineModal = () => {
-    setFormError("");
-    setForm({ size: "", in_weight: "", in_quantity: "" });
-    setImageFile(null);
-    setEditingLine(null);
-    setLineModalOpen(true);
-  };
-
-  const openEditLineModal = (line) => {
-    setEditingLine(line);
-    setSelectedItemId(String(line.item));
-    setForm({
-      size: String(line.size),
-      in_weight: String(line.in_weight),
-      in_quantity: String(line.in_quantity),
-    });
-    setImageFile(null);
-    setFormError("");
-    setLineModalOpen(true);
-  };
-
-  const closeLineModal = () => {
-    setLineModalOpen(false);
-    setEditingLine(null);
-    setForm({ size: "", in_weight: "", in_quantity: "" });
-    setImageFile(null);
-  };
+  
 
   const openLineHistoryModal = async (line) => {
     setLineHistoryTitle(`${line.item_name} (${line.size_name})`);
@@ -392,10 +275,21 @@ const WaxReceiveDetailPage = () => {
                     <div className="action-group">
                       <button
                         type="button"
+                        className="small-btn info icon-btn"
+                        data-action="view"
+                        data-icon="eye"
+                        aria-label="View"
+                        onClick={() => setViewImageUrl(line.image || "")}
+                        disabled={!line.image}
+                      >
+                        <span className="sr-only">View</span>
+                      </button>
+                      <button
+                        type="button"
                         className="small-btn"
                         data-action="edit"
                         data-icon="✎"
-                        onClick={() => openEditLineModal(line)}
+                        onClick={() => navigate(`/wax-receives/${id}/lines/${line.id}/edit`)}
                       >
                         Edit
                       </button>
@@ -408,17 +302,6 @@ const WaxReceiveDetailPage = () => {
                       >
                         History
                       </button>
-                      <button
-                        type="button"
-                        className="small-btn info"
-                        data-action="view"
-                        data-icon="👁"
-                        onClick={() => setViewImageUrl(line.image || "")}
-                        disabled={!line.image}
-                      >
-                        View
-                      </button>
-
                       <button
                         type="button"
                         className="small-btn danger"
@@ -443,88 +326,6 @@ const WaxReceiveDetailPage = () => {
         )}
       </div>
 
-      {lineModalOpen && (
-        <div className="modal-overlay" onClick={closeLineModal}>
-          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
-            <h3>{editingLine ? "Edit Wax Receive Line" : "Add Wax Receive Line"}</h3>
-            <form className="form wax-form" onSubmit={handleSubmit}>
-              <label htmlFor="wax-item">Item</label>
-              <select
-                id="wax-item"
-                value={selectedItemId}
-                onChange={(event) => setSelectedItemId(event.target.value)}
-                required
-              >
-                <option value="">Select item</option>
-                {vendorItemOptions.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-
-              <label htmlFor="wax-size">Size</label>
-              <select
-                id="wax-size"
-                value={form.size}
-                onChange={(event) => setForm((prev) => ({ ...prev, size: event.target.value }))}
-                required
-              >
-                <option value="">Select size</option>
-                {sizes.map((size) => (
-                  <option key={size.id} value={size.id}>
-                    {size.name}
-                  </option>
-                ))}
-              </select>
-
-              <label htmlFor="wax-weight">Weight (in_weight)</label>
-              <input
-                id="wax-weight"
-                type="number"
-                step="0.001"
-                value={form.in_weight}
-                onChange={(event) => setForm((prev) => ({ ...prev, in_weight: event.target.value }))}
-                required
-              />
-
-              <label htmlFor="wax-qty">Quantity (in_quantity)</label>
-              <input
-                id="wax-qty"
-                type="number"
-                value={form.in_quantity}
-                onChange={(event) => setForm((prev) => ({ ...prev, in_quantity: event.target.value }))}
-                required
-              />
-
-              <label htmlFor="wax-rate">Rate</label>
-              <input id="wax-rate" type="number" value={rate} readOnly />
-
-              <label htmlFor="wax-amount">Amount</label>
-              <input id="wax-amount" type="text" value={amountPreview} readOnly />
-
-              <label htmlFor="wax-image">Image</label>
-              <input
-                id="wax-image"
-                type="file"
-                accept="image/*"
-                onChange={(event) => setImageFile(event.target.files?.[0] || null)}
-              />
-
-              {formError && <p className="error">{formError}</p>}
-
-              <div className="modal-actions">
-                <button type="button" className="secondary-btn" onClick={closeLineModal}>
-                  Cancel
-                </button>
-                <button type="submit" disabled={submitting}>
-                  {submitting ? "Saving..." : editingLine ? "Update" : "Add Line"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {viewImageUrl && (
         <div className="modal-overlay" onClick={() => setViewImageUrl("")}>

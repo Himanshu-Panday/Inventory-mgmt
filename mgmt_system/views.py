@@ -266,11 +266,12 @@ class WaxReceiveViewSet(viewsets.ModelViewSet):
 
         if request.method == "GET":
             lines = wax_receive.lines.select_related("item", "size").all()
-            serializer = WaxReceiveLineSerializer(lines, many=True)
+            serializer = WaxReceiveLineSerializer(lines, many=True, context={"request": request})
             return Response(serializer.data)
 
         serializer = WaxReceiveLineSerializer(
-            data={**request.data, "wax_receive": wax_receive.id}
+            data={**request.data, "wax_receive": wax_receive.id},
+            context={"request": request},
         )
         serializer.is_valid(raise_exception=True)
         item = serializer.validated_data["item"]
@@ -297,7 +298,10 @@ class WaxReceiveViewSet(viewsets.ModelViewSet):
                 rate=vendor_rate.rate,
             )
 
-        return Response(WaxReceiveLineSerializer(line).data, status=status.HTTP_201_CREATED)
+        return Response(
+            WaxReceiveLineSerializer(line, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class WaxReceiveLineViewSet(viewsets.ModelViewSet):

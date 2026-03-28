@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import { listVendorLists, listWaxReceiveHistory } from "../api/mgmt";
+import { listWaxReceiveHistory } from "../api/mgmt";
 import useInfiniteScroll from "../hooks/useInfiniteScroll";
 import { useNavigate } from "react-router-dom";
-import { addWaxReceive, editWaxReceive, fetchWaxReceives, removeWaxReceive } from "../store/waxReceiveSlice";
+import { fetchWaxReceives, removeWaxReceive } from "../store/waxReceiveSlice";
 
 const formatDateTime = (value) => {
   if (!value) return "-";
@@ -15,11 +15,6 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { records, loading, submitting, error } = useSelector((state) => state.waxReceive);
-  const [vendors, setVendors] = useState([]);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingRecord, setEditingRecord] = useState(null);
-  const [vendorId, setVendorId] = useState("");
-  const [formError, setFormError] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyRows, setHistoryRows] = useState([]);
   const [historyTitle, setHistoryTitle] = useState("");
@@ -42,50 +37,7 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
 
   useEffect(() => {
     dispatch(fetchWaxReceives());
-    listVendorLists().then(setVendors).catch(() => setVendors([]));
   }, [dispatch]);
-
-
-  const openEditModal = (record) => {
-    setEditingRecord(record);
-    setVendorId(String(record.vendor));
-    setFormError("");
-    setModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setModalOpen(false);
-    setEditingRecord(null);
-    setVendorId("");
-    setFormError("");
-  };
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setFormError("");
-
-    if (!canCreateUpdate) {
-      setFormError("You have read-only access for this master.");
-      return;
-    }
-
-    if (!vendorId) {
-      setFormError("Vendor name is required.");
-      return;
-    }
-
-    try {
-      const payload = { vendor: Number(vendorId) };
-      if (editingRecord) {
-        await dispatch(editWaxReceive({ id: editingRecord.id, payload })).unwrap();
-      } else {
-        await dispatch(addWaxReceive(payload)).unwrap();
-      }
-      closeModal();
-    } catch (requestError) {
-      setFormError(requestError || "Unable to save wax receive.");
-    }
-  };
 
   const openHistoryModal = async (record) => {
     setHistoryTitle(`Wax Receive #${record.id}`);
@@ -231,7 +183,7 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
                           data-icon="✎"
                           onClick={(event) => {
                             event.stopPropagation();
-                            openEditModal(record);
+                            navigate(`/wax-receives/${record.id}/edit`);
                           }}
                           disabled={!canCreateUpdate}
                         >
@@ -275,40 +227,6 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
         </div>
       )}
 
-      {modalOpen && (
-        <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
-            <h3>Edit Wax Receive</h3>
-            <form className="form" onSubmit={handleSubmit}>
-              <label htmlFor="wax-vendor">Vendor Name</label>
-              <select
-                id="wax-vendor"
-                value={vendorId}
-                onChange={(event) => setVendorId(event.target.value)}
-                required
-              >
-                <option value="">Select vendor</option>
-                {vendors.map((vendor) => (
-                  <option key={vendor.id} value={vendor.id}>
-                    {vendor.vendor_name}
-                  </option>
-                ))}
-              </select>
-
-              {formError && <p className="error">{formError}</p>}
-
-              <div className="modal-actions">
-                <button type="button" className="secondary-btn" onClick={closeModal}>
-                  Cancel
-                </button>
-                <button type="submit" disabled={submitting}>
-                  {submitting ? "Saving..." : "Update"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {historyOpen && (
         <div className="modal-overlay" onClick={() => setHistoryOpen(false)}>

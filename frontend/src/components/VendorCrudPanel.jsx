@@ -7,8 +7,6 @@ import {
   listVendorListHistory,
 } from "../api/mgmt";
 import {
-  addVendor,
-  editVendor,
   fetchVendors,
   removeVendor,
 } from "../store/vendorMasterSlice";
@@ -18,20 +16,11 @@ const formatDateTime = (value) => {
   return new Date(value).toLocaleString();
 };
 
-const defaultVendorForm = {
-  vendor_name: "",
-};
-
 const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const vendorState = useSelector((state) => state.vendorMaster);
   const { records, loading, submitting, error } = vendorState;
-
-  const [isVendorModalOpen, setIsVendorModalOpen] = useState(false);
-  const [editingVendor, setEditingVendor] = useState(null);
-  const [vendorForm, setVendorForm] = useState(defaultVendorForm);
-  const [vendorFormError, setVendorFormError] = useState("");
 
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyRows, setHistoryRows] = useState([]);
@@ -64,58 +53,6 @@ const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
     dispatch(fetchVendors());
   }, [dispatch]);
 
-  const openCreateModal = () => {
-    setEditingVendor(null);
-    setVendorForm(defaultVendorForm);
-    setVendorFormError("");
-    setIsVendorModalOpen(true);
-  };
-
-  const openEditModal = (record) => {
-    setEditingVendor(record);
-    setVendorForm({
-      vendor_name: record.vendor_name,
-    });
-    setVendorFormError("");
-    setIsVendorModalOpen(true);
-  };
-
-  const closeVendorModal = () => {
-    setIsVendorModalOpen(false);
-    setEditingVendor(null);
-    setVendorForm(defaultVendorForm);
-    setVendorFormError("");
-  };
-
-  const handleVendorSubmit = async (event) => {
-    event.preventDefault();
-    setVendorFormError("");
-
-    if (!canCreateUpdate) {
-      setVendorFormError("You have read-only access for this master.");
-      return;
-    }
-
-    if (!vendorForm.vendor_name.trim()) {
-      setVendorFormError("Vendor name is required.");
-      return;
-    }
-
-    const payload = {
-      vendor_name: vendorForm.vendor_name.trim(),
-    };
-
-    try {
-      if (editingVendor) {
-        await dispatch(editVendor({ id: editingVendor.id, payload })).unwrap();
-      } else {
-        await dispatch(addVendor(payload)).unwrap();
-      }
-      closeVendorModal();
-    } catch (requestError) {
-      setVendorFormError(requestError || "Unable to save vendor.");
-    }
-  };
 
   const openHistoryModal = async (record) => {
     setHistoryTitle(record.vendor_name);
@@ -290,7 +227,7 @@ const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
                           data-icon="✎"
                           onClick={(event) => {
                             event.stopPropagation();
-                            openEditModal(record);
+                            navigate(`/vendors/${record.id}/edit`);
                           }}
                           disabled={!canCreateUpdate}
                         >
@@ -334,37 +271,6 @@ const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
         </div>
       )}
 
-      {isVendorModalOpen && (
-        <div className="modal-overlay" onClick={closeVendorModal}>
-          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
-            <h3>{editingVendor ? "Edit Vendor" : "Create Vendor"}</h3>
-            <form className="form" onSubmit={handleVendorSubmit}>
-              <label htmlFor="vendor-name">Vendor Name</label>
-              <input
-                id="vendor-name"
-                type="text"
-                value={vendorForm.vendor_name}
-                onChange={(event) =>
-                  setVendorForm((prev) => ({ ...prev, vendor_name: event.target.value }))
-                }
-                placeholder="Enter vendor name"
-                required
-              />
-
-              {vendorFormError && <p className="error">{vendorFormError}</p>}
-
-              <div className="modal-actions">
-                <button type="button" className="secondary-btn" onClick={closeVendorModal}>
-                  Cancel
-                </button>
-                <button type="submit" disabled={submitting}>
-                  {submitting ? "Saving..." : editingVendor ? "Update" : "Create"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {historyOpen && (
         <div className="modal-overlay" onClick={() => setHistoryOpen(false)}>

@@ -10,10 +10,15 @@ const LoginPage = lazy(() => import("./pages/LoginPage"));
 const WaxReceiveDetailPage = lazy(() => import("./pages/WaxReceiveDetailPage"));
 const WaxReceiveCreatePage = lazy(() => import("./pages/WaxReceiveCreatePage"));
 const WaxReceiveLineCreatePage = lazy(() => import("./pages/WaxReceiveLineCreatePage"));
+const WaxReceiveEditPage = lazy(() => import("./pages/WaxReceiveEditPage"));
+const WaxReceiveLineEditPage = lazy(() => import("./pages/WaxReceiveLineEditPage"));
 const VendorCreatePage = lazy(() => import("./pages/VendorCreatePage"));
 const VendorItemCreatePage = lazy(() => import("./pages/VendorItemCreatePage"));
+const VendorEditPage = lazy(() => import("./pages/VendorEditPage"));
+const VendorItemEditPage = lazy(() => import("./pages/VendorItemEditPage"));
 const VendorDetailPage = lazy(() => import("./pages/VendorDetailPage"));
 const IssueMasterCreatePage = lazy(() => import("./pages/IssueMasterCreatePage"));
+const IssueMasterEditPage = lazy(() => import("./pages/IssueMasterEditPage"));
 
 function App() {
   return (
@@ -51,10 +56,26 @@ function App() {
             }
           />
           <Route
+            path="/wax-receives/:id/edit"
+            element={
+              <ProtectedRoute>
+                <WaxReceiveEditPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/wax-receives/:id/lines/new"
             element={
               <ProtectedRoute>
                 <WaxReceiveLineCreatePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/wax-receives/:id/lines/:lineId/edit"
+            element={
+              <ProtectedRoute>
+                <WaxReceiveLineEditPage />
               </ProtectedRoute>
             }
           />
@@ -75,6 +96,14 @@ function App() {
             }
           />
           <Route
+            path="/vendors/:id/edit"
+            element={
+              <ProtectedRoute>
+                <VendorEditPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/vendors/:id"
             element={
               <ProtectedRoute>
@@ -91,10 +120,26 @@ function App() {
             }
           />
           <Route
+            path="/vendors/:id/items/:itemId/edit"
+            element={
+              <ProtectedRoute>
+                <VendorItemEditPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/issue-masters/new"
             element={
               <ProtectedRoute>
                 <IssueMasterCreatePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/issue-masters/:id/edit"
+            element={
+              <ProtectedRoute>
+                <IssueMasterEditPage />
               </ProtectedRoute>
             }
           />

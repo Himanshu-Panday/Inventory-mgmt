@@ -3,11 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 
 import useInfiniteScroll from "../hooks/useInfiniteScroll";
-import { fetchItems } from "../store/itemMasterSlice";
-import { fetchSizes } from "../store/sizeMasterSlice";
 import {
-  addIssueMaster,
-  editIssueMaster,
   fetchIssueMasters,
   removeIssueMaster,
 } from "../store/issueMasterSlice";
@@ -22,19 +18,6 @@ const IssueMasterPanel = ({ canCreateUpdate, canDelete }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { records, loading, submitting, error } = useSelector((state) => state.issueMaster);
-  const items = useSelector((state) => state.itemMaster.records);
-  const sizes = useSelector((state) => state.sizeMaster.records);
-
-  const [form, setForm] = useState({
-    item: "",
-    size: "",
-    out_weight: "",
-    out_quantity: "",
-    description: "",
-  });
-  const [formError, setFormError] = useState("");
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingRecord, setEditingRecord] = useState(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyRows, setHistoryRows] = useState([]);
   const [historyTitle, setHistoryTitle] = useState("");
@@ -44,84 +27,9 @@ const IssueMasterPanel = ({ canCreateUpdate, canDelete }) => {
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const { visibleCount, sentinelRef } = useInfiniteScroll(records.length);
   const visibleRecords = records.slice(0, visibleCount);
-  const selectedItemId = form.item ? String(form.item) : "";
-  const selectedSizeId = form.size ? String(form.size) : "";
-  const duplicateRecord = records.find(
-    (record) =>
-      String(record.item) === selectedItemId && String(record.size) === selectedSizeId,
-  );
-  const isDuplicateSelection =
-    Boolean(duplicateRecord) && (!editingRecord || duplicateRecord.id !== editingRecord.id);
-
   useEffect(() => {
     dispatch(fetchIssueMasters());
-    if (items.length === 0) dispatch(fetchItems());
-    if (sizes.length === 0) dispatch(fetchSizes());
-  }, [dispatch, items.length, sizes.length]);
-
-  const openModal = () => {
-    setEditingRecord(null);
-    setForm({
-      item: "",
-      size: "",
-      out_weight: "",
-      out_quantity: "",
-      description: "",
-    });
-    setFormError("");
-    setModalOpen(true);
-  };
-
-  const openEditModal = (record) => {
-    setEditingRecord(record);
-    setForm({
-      item: String(record.item),
-      size: String(record.size),
-      out_weight: String(record.out_weight),
-      out_quantity: String(record.out_quantity),
-      description: record.description || "",
-    });
-    setFormError("");
-    setModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setModalOpen(false);
-    setEditingRecord(null);
-  };
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setFormError("");
-
-    if (!canCreateUpdate) {
-      setFormError("You have read-only access for this master.");
-      return;
-    }
-
-    if (!form.item || !form.size || !form.out_weight || !form.out_quantity) {
-      setFormError("Item, size, weight and quantity are required.");
-      return;
-    }
-
-    try {
-      const payload = {
-        item: Number(form.item),
-        size: Number(form.size),
-        out_weight: Number(form.out_weight),
-        out_quantity: Number(form.out_quantity),
-        description: form.description,
-      };
-      if (editingRecord) {
-        await dispatch(editIssueMaster({ id: editingRecord.id, payload })).unwrap();
-      } else {
-        await dispatch(addIssueMaster(payload)).unwrap();
-      }
-      closeModal();
-    } catch (requestError) {
-      setFormError(requestError || "Unable to save issue record.");
-    }
-  };
+  }, [dispatch]);
 
   const openHistoryModal = async (record) => {
     setHistoryTitle(`${record.item_name} - ${record.size_name}`);
@@ -250,11 +158,11 @@ const IssueMasterPanel = ({ canCreateUpdate, canDelete }) => {
                           className="small-btn"
                           data-action="edit"
                           data-icon="✎"
-                          onClick={() => openEditModal(record)}
-                          disabled={!canCreateUpdate}
-                        >
-                          Edit
-                        </button>
+                        onClick={() => navigate(`/issue-masters/${record.id}/edit`)}
+                        disabled={!canCreateUpdate}
+                      >
+                        Edit
+                      </button>
                         <button
                           type="button"
                           className="small-btn info"
@@ -285,86 +193,6 @@ const IssueMasterPanel = ({ canCreateUpdate, canDelete }) => {
         </div>
       )}
 
-      {modalOpen && (
-        <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
-            <h3>{editingRecord ? "Edit Issue" : "Create Issue"}</h3>
-            <form className="form wax-form" onSubmit={handleSubmit}>
-              <label htmlFor="issue-item">Item</label>
-              <select
-                id="issue-item"
-                value={form.item}
-                onChange={(event) => setForm((prev) => ({ ...prev, item: event.target.value }))}
-                required
-              >
-                <option value="">Select item</option>
-                {items.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-
-              <label htmlFor="issue-size">Size</label>
-              <select
-                id="issue-size"
-                value={form.size}
-                onChange={(event) => setForm((prev) => ({ ...prev, size: event.target.value }))}
-                required
-              >
-                <option value="">Select size</option>
-                {sizes.map((size) => (
-                  <option key={size.id} value={size.id}>
-                    {size.name}
-                  </option>
-                ))}
-              </select>
-
-              <label htmlFor="issue-weight">Out Weight</label>
-              <input
-                id="issue-weight"
-                type="number"
-                step="0.001"
-                value={form.out_weight}
-                onChange={(event) => setForm((prev) => ({ ...prev, out_weight: event.target.value }))}
-                required
-              />
-
-              <label htmlFor="issue-qty">Out Quantity</label>
-              <input
-                id="issue-qty"
-                type="number"
-                value={form.out_quantity}
-                onChange={(event) => setForm((prev) => ({ ...prev, out_quantity: event.target.value }))}
-                required
-              />
-
-              <label htmlFor="issue-desc">Description</label>
-              <input
-                id="issue-desc"
-                type="text"
-                value={form.description}
-                onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
-                placeholder="Optional description"
-              />
-
-              {formError && <p className="error">{formError}</p>}
-              {isDuplicateSelection && (
-                <p className="error">Issue record for this item and size already exists.</p>
-              )}
-
-              <div className="modal-actions">
-                <button type="button" className="secondary-btn" onClick={closeModal}>
-                  Cancel
-                </button>
-                <button type="submit" disabled={submitting || isDuplicateSelection}>
-                  {submitting ? "Saving..." : editingRecord ? "Update" : "Create"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {historyOpen && (
         <div className="modal-overlay" onClick={() => setHistoryOpen(false)}>

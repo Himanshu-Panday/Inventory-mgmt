@@ -4,17 +4,14 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { useAuth } from "../components/AuthProvider";
 import useInfiniteScroll from "../hooks/useInfiniteScroll";
-import { fetchItems } from "../store/itemMasterSlice";
 import rudraLogo from "../assets/RUDRA_LOGO.png";
 import { setActiveTab } from "../store/uiSlice";
 import {
-  createVendorModel,
   deleteVendorModel,
   listVendorListHistory,
   listVendorLists,
   listVendorModelHistory,
   listVendorModels,
-  updateVendorModel,
 } from "../api/mgmt";
 
 const MASTER_TABS = [
@@ -31,11 +28,6 @@ const formatDateTime = (value) => {
   return new Date(value).toLocaleString();
 };
 
-const defaultItemForm = {
-  item_name: "",
-  rate: "",
-};
-
 const VendorDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -43,16 +35,9 @@ const VendorDetailPage = () => {
   const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const items = useSelector((state) => state.itemMaster.records);
-
   const [vendor, setVendor] = useState(null);
   const [vendorItems, setVendorItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [isItemModalOpen, setIsItemModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState(null);
-  const [itemForm, setItemForm] = useState(defaultItemForm);
-  const [itemFormError, setItemFormError] = useState("");
-  const [itemSubmitting, setItemSubmitting] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyRows, setHistoryRows] = useState([]);
   const [historyTitle, setHistoryTitle] = useState("");
@@ -116,12 +101,6 @@ const VendorDetailPage = () => {
   };
 
   useEffect(() => {
-    if (items.length === 0) {
-      dispatch(fetchItems());
-    }
-  }, [dispatch, items.length]);
-
-  useEffect(() => {
     let isMounted = true;
     setLoading(true);
     Promise.all([listVendorLists(), listVendorModels({ vendorId: id })])
@@ -143,80 +122,6 @@ const VendorDetailPage = () => {
       isMounted = false;
     };
   }, [id]);
-
-  const openItemCreateModal = () => {
-    setEditingItem(null);
-    setItemForm(defaultItemForm);
-    setItemFormError("");
-    setIsItemModalOpen(true);
-  };
-
-  const openItemEditModal = (record) => {
-    setEditingItem(record);
-    setItemForm({
-      item_name: String(record.item_name),
-      rate: String(record.rate),
-    });
-    setItemFormError("");
-    setIsItemModalOpen(true);
-  };
-
-  const closeItemModal = () => {
-    setIsItemModalOpen(false);
-    setEditingItem(null);
-    setItemForm(defaultItemForm);
-    setItemFormError("");
-  };
-
-  const handleItemSubmit = async (event) => {
-    event.preventDefault();
-    setItemFormError("");
-
-    if (!canCreateUpdate) {
-      setItemFormError("You have read-only access for this master.");
-      return;
-    }
-
-    if (!itemForm.item_name || !itemForm.rate) {
-      setItemFormError("Item name and rate are required.");
-      return;
-    }
-
-    const payload = {
-      vendor: Number(id),
-      item_name: Number(itemForm.item_name),
-      rate: Number(itemForm.rate),
-    };
-
-    if (Number.isNaN(payload.rate)) {
-      setItemFormError("Rate must be a valid number.");
-      return;
-    }
-
-    setItemSubmitting(true);
-    try {
-      let saved;
-      if (editingItem) {
-        saved = await updateVendorModel({ id: editingItem.id, payload });
-        setVendorItems((prev) =>
-          prev.map((record) => (record.id === saved.id ? saved : record)),
-        );
-      } else {
-        saved = await createVendorModel(payload);
-        setVendorItems((prev) => [...prev, saved]);
-      }
-      closeItemModal();
-    } catch (requestError) {
-      const apiMessage =
-        requestError?.response?.data?.detail ||
-        requestError?.response?.data?.item_name?.[0] ||
-        requestError?.response?.data?.rate?.[0] ||
-        "Unable to save vendor item.";
-      setItemFormError(apiMessage);
-    } finally {
-      setItemSubmitting(false);
-    }
-  };
 
   const openHistoryModal = async (record, type) => {
     setHistoryTitle(type === "vendor" ? vendor?.vendor_name || "Vendor" : record.item_name_label);
@@ -371,7 +276,7 @@ const VendorDetailPage = () => {
                         className="small-btn"
                         data-action="edit"
                         data-icon="✎"
-                        onClick={() => openItemEditModal(record)}
+                        onClick={() => navigate(`/vendors/${id}/items/${record.id}/edit`)}
                         disabled={!canCreateUpdate}
                       >
                         Edit
@@ -406,57 +311,6 @@ const VendorDetailPage = () => {
           <div ref={sentinelRefFiltered} className="inline-loader" />
         )}
       </div>
-
-      {isItemModalOpen && (
-        <div className="modal-overlay" onClick={closeItemModal}>
-          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
-            <h3>{editingItem ? "Edit Vendor Item" : "Add Vendor Item"}</h3>
-            <form className="form" onSubmit={handleItemSubmit}>
-              <label htmlFor="vendor-item">Item Name</label>
-              <select
-                id="vendor-item"
-                value={itemForm.item_name}
-                onChange={(event) =>
-                  setItemForm((prev) => ({ ...prev, item_name: event.target.value }))
-                }
-                required
-              >
-                <option value="">Select item</option>
-                {items.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-
-              <label htmlFor="vendor-rate">Rate</label>
-              <input
-                id="vendor-rate"
-                type="number"
-                min="0"
-                step="1"
-                value={itemForm.rate}
-                onChange={(event) =>
-                  setItemForm((prev) => ({ ...prev, rate: event.target.value }))
-                }
-                placeholder="Enter rate"
-                required
-              />
-
-              {itemFormError && <p className="error">{itemFormError}</p>}
-
-              <div className="modal-actions">
-                <button type="button" className="secondary-btn" onClick={closeItemModal}>
-                  Cancel
-                </button>
-                <button type="submit" disabled={itemSubmitting}>
-                  {itemSubmitting ? "Saving..." : editingItem ? "Update" : "Create"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {historyOpen && (
         <div className="modal-overlay" onClick={() => setHistoryOpen(false)}>
