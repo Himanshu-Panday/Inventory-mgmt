@@ -20,6 +20,7 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
   const [historyTitle, setHistoryTitle] = useState("");
   const [historyLoading, setHistoryLoading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteError, setDeleteError] = useState("");
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [filterVendorName, setFilterVendorName] = useState("");
@@ -55,8 +56,13 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
-    await dispatch(removeWaxReceive(deleteTarget.id));
-    setDeleteTarget(null);
+    setDeleteError("");
+    try {
+      await dispatch(removeWaxReceive(deleteTarget.id)).unwrap();
+      setDeleteTarget(null);
+    } catch (err) {
+      setDeleteError(err || "Unable to delete wax receive.");
+    }
   };
 
   const toggleSelectAll = () => {
@@ -75,9 +81,14 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
 
   const confirmBulkDelete = async () => {
     if (selectedIds.length === 0) return;
-    await Promise.all(selectedIds.map((id) => dispatch(removeWaxReceive(id))));
-    setSelectedIds([]);
-    setBulkDeleteOpen(false);
+    setDeleteError("");
+    try {
+      await Promise.all(selectedIds.map((id) => dispatch(removeWaxReceive(id)).unwrap()));
+      setSelectedIds([]);
+      setBulkDeleteOpen(false);
+    } catch (err) {
+      setDeleteError(err || "Unable to delete wax receives.");
+    }
   };
 
   return (
@@ -268,10 +279,14 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
       )}
 
       {deleteTarget && (
-        <div className="modal-overlay" onClick={() => setDeleteTarget(null)}>
+        <div className="modal-overlay" onClick={() => {
+          setDeleteTarget(null);
+          setDeleteError("");
+        }}>
           <div className="modal-card" onClick={(event) => event.stopPropagation()}>
             <h3>Confirm Delete</h3>
             <p>Are you sure you want to delete this?</p>
+            {deleteError && <p className="error">{deleteError}</p>}
             <div className="modal-actions">
               <button type="button" className="secondary-btn" onClick={() => setDeleteTarget(null)}>
                 Cancel
@@ -285,10 +300,14 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
       )}
 
       {bulkDeleteOpen && (
-        <div className="modal-overlay" onClick={() => setBulkDeleteOpen(false)}>
+        <div className="modal-overlay" onClick={() => {
+          setBulkDeleteOpen(false);
+          setDeleteError("");
+        }}>
           <div className="modal-card" onClick={(event) => event.stopPropagation()}>
             <h3>Confirm Delete</h3>
             <p>Are you sure you want to delete {selectedIds.length} records?</p>
+            {deleteError && <p className="error">{deleteError}</p>}
             <div className="modal-actions">
               <button type="button" className="secondary-btn" onClick={() => setBulkDeleteOpen(false)}>
                 Cancel

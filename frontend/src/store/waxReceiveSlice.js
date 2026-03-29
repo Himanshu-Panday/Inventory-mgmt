@@ -2,10 +2,21 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 
 import { createWaxReceive, deleteWaxReceive, listWaxReceives, updateWaxReceive } from "../api/mgmt";
 
-const getErrorMessage = (error) =>
-  error?.response?.data?.detail ||
-  error?.response?.data?.vendor?.[0] ||
-  "Request failed";
+const getErrorMessage = (error) => {
+  const data = error?.response?.data;
+  if (typeof data === "string") return data;
+  if (data?.detail) return data.detail;
+  if (data?.error) return data.error;
+  if (data?.vendor?.[0]) return data.vendor[0];
+  if (data && typeof data === "object") {
+    try {
+      return JSON.stringify(data);
+    } catch {
+      return "Request failed";
+    }
+  }
+  return error?.message || "Request failed";
+};
 
 export const fetchWaxReceives = createAsyncThunk("waxReceive/fetchAll", async (_, thunkApi) => {
   try {

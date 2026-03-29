@@ -7,11 +7,22 @@ import {
   updateIssueMaster,
 } from "../api/mgmt";
 
-const getErrorMessage = (error) =>
-  error?.response?.data?.detail ||
-  error?.response?.data?.item?.[0] ||
-  error?.response?.data?.size?.[0] ||
-  "Request failed";
+const getErrorMessage = (error) => {
+  const data = error?.response?.data;
+  if (typeof data === "string") return data;
+  if (data?.detail) return data.detail;
+  if (data?.error) return data.error;
+  if (data?.item?.[0]) return data.item[0];
+  if (data?.size?.[0]) return data.size[0];
+  if (data && typeof data === "object") {
+    try {
+      return JSON.stringify(data);
+    } catch {
+      return "Request failed";
+    }
+  }
+  return error?.message || "Request failed";
+};
 
 export const fetchIssueMasters = createAsyncThunk("issueMaster/fetchAll", async (_, thunkApi) => {
   try {

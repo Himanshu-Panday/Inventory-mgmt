@@ -3,6 +3,7 @@ from decimal import Decimal
 from uuid import UUID
 
 from django.forms.models import model_to_dict
+from django.db.models.fields.files import FieldFile
 
 from .models import (
     DeletedRecord,
@@ -40,6 +41,8 @@ def make_json_safe(value):
         return value.isoformat()
     if isinstance(value, UUID):
         return str(value)
+    if isinstance(value, FieldFile):
+        return value.name or ""
     if isinstance(value, dict):
         return {key: make_json_safe(val) for key, val in value.items()}
     if isinstance(value, (list, tuple, set)):

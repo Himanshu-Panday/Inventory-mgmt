@@ -43,6 +43,7 @@ const VendorDetailPage = () => {
   const [historyTitle, setHistoryTitle] = useState("");
   const [historyLoading, setHistoryLoading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteError, setDeleteError] = useState("");
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -142,9 +143,16 @@ const VendorDetailPage = () => {
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
-    await deleteVendorModel(deleteTarget.id);
-    setVendorItems((prev) => prev.filter((record) => record.id !== deleteTarget.id));
-    setDeleteTarget(null);
+    setDeleteError("");
+    try {
+      await deleteVendorModel(deleteTarget.id);
+      setVendorItems((prev) => prev.filter((record) => record.id !== deleteTarget.id));
+      setDeleteTarget(null);
+    } catch (err) {
+      const apiMessage =
+        err?.response?.data?.detail || "Unable to delete vendor item.";
+      setDeleteError(apiMessage);
+    }
   };
 
   const toggleSelectAll = () => {
@@ -163,10 +171,17 @@ const VendorDetailPage = () => {
 
   const confirmBulkDelete = async () => {
     if (selectedIds.length === 0) return;
-    await Promise.all(selectedIds.map((id) => deleteVendorModel(id)));
-    setVendorItems((prev) => prev.filter((record) => !selectedIds.includes(record.id)));
-    setSelectedIds([]);
-    setBulkDeleteOpen(false);
+    setDeleteError("");
+    try {
+      await Promise.all(selectedIds.map((id) => deleteVendorModel(id)));
+      setVendorItems((prev) => prev.filter((record) => !selectedIds.includes(record.id)));
+      setSelectedIds([]);
+      setBulkDeleteOpen(false);
+    } catch (err) {
+      const apiMessage =
+        err?.response?.data?.detail || "Unable to delete vendor items.";
+      setDeleteError(apiMessage);
+    }
   };
 
   const content = loading ? (
@@ -397,10 +412,14 @@ const VendorDetailPage = () => {
       )}
 
       {deleteTarget && (
-        <div className="modal-overlay" onClick={() => setDeleteTarget(null)}>
+        <div className="modal-overlay" onClick={() => {
+          setDeleteTarget(null);
+          setDeleteError("");
+        }}>
           <div className="modal-card" onClick={(event) => event.stopPropagation()}>
             <h3>Confirm Delete</h3>
             <p>Are you sure you want to delete this?</p>
+            {deleteError && <p className="error">{deleteError}</p>}
             <div className="modal-actions">
               <button type="button" className="secondary-btn" onClick={() => setDeleteTarget(null)}>
                 Cancel
@@ -414,10 +433,14 @@ const VendorDetailPage = () => {
       )}
 
       {bulkDeleteOpen && (
-        <div className="modal-overlay" onClick={() => setBulkDeleteOpen(false)}>
+        <div className="modal-overlay" onClick={() => {
+          setBulkDeleteOpen(false);
+          setDeleteError("");
+        }}>
           <div className="modal-card" onClick={(event) => event.stopPropagation()}>
             <h3>Confirm Delete</h3>
             <p>Are you sure you want to delete {selectedIds.length} records?</p>
+            {deleteError && <p className="error">{deleteError}</p>}
             <div className="modal-actions">
               <button type="button" className="secondary-btn" onClick={() => setBulkDeleteOpen(false)}>
                 Cancel

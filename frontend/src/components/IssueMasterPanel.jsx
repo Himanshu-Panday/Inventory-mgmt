@@ -23,6 +23,7 @@ const IssueMasterPanel = ({ canCreateUpdate, canDelete }) => {
   const [historyTitle, setHistoryTitle] = useState("");
   const [historyLoading, setHistoryLoading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteError, setDeleteError] = useState("");
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const { visibleCount, sentinelRef } = useInfiniteScroll(records.length);
@@ -47,8 +48,13 @@ const IssueMasterPanel = ({ canCreateUpdate, canDelete }) => {
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
-    await dispatch(removeIssueMaster(deleteTarget.id));
-    setDeleteTarget(null);
+    setDeleteError("");
+    try {
+      await dispatch(removeIssueMaster(deleteTarget.id)).unwrap();
+      setDeleteTarget(null);
+    } catch (err) {
+      setDeleteError(err || "Unable to delete issue.");
+    }
   };
 
   const toggleSelectAll = () => {
@@ -67,9 +73,14 @@ const IssueMasterPanel = ({ canCreateUpdate, canDelete }) => {
 
   const confirmBulkDelete = async () => {
     if (selectedIds.length === 0) return;
-    await Promise.all(selectedIds.map((id) => dispatch(removeIssueMaster(id))));
-    setSelectedIds([]);
-    setBulkDeleteOpen(false);
+    setDeleteError("");
+    try {
+      await Promise.all(selectedIds.map((id) => dispatch(removeIssueMaster(id)).unwrap()));
+      setSelectedIds([]);
+      setBulkDeleteOpen(false);
+    } catch (err) {
+      setDeleteError(err || "Unable to delete issues.");
+    }
   };
 
   return (
@@ -234,10 +245,14 @@ const IssueMasterPanel = ({ canCreateUpdate, canDelete }) => {
       )}
 
       {deleteTarget && (
-        <div className="modal-overlay" onClick={() => setDeleteTarget(null)}>
+        <div className="modal-overlay" onClick={() => {
+          setDeleteTarget(null);
+          setDeleteError("");
+        }}>
           <div className="modal-card" onClick={(event) => event.stopPropagation()}>
             <h3>Confirm Delete</h3>
             <p>Are you sure you want to delete this?</p>
+            {deleteError && <p className="error">{deleteError}</p>}
             <div className="modal-actions">
               <button type="button" className="secondary-btn" onClick={() => setDeleteTarget(null)}>
                 Cancel
@@ -251,10 +266,14 @@ const IssueMasterPanel = ({ canCreateUpdate, canDelete }) => {
       )}
 
       {bulkDeleteOpen && (
-        <div className="modal-overlay" onClick={() => setBulkDeleteOpen(false)}>
+        <div className="modal-overlay" onClick={() => {
+          setBulkDeleteOpen(false);
+          setDeleteError("");
+        }}>
           <div className="modal-card" onClick={(event) => event.stopPropagation()}>
             <h3>Confirm Delete</h3>
             <p>Are you sure you want to delete {selectedIds.length} records?</p>
+            {deleteError && <p className="error">{deleteError}</p>}
             <div className="modal-actions">
               <button type="button" className="secondary-btn" onClick={() => setBulkDeleteOpen(false)}>
                 Cancel

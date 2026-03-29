@@ -7,10 +7,21 @@ import {
   updateVendorList,
 } from "../api/mgmt";
 
-const getErrorMessage = (error) =>
-  error?.response?.data?.detail ||
-  error?.response?.data?.vendor_name?.[0] ||
-  "Request failed";
+const getErrorMessage = (error) => {
+  const data = error?.response?.data;
+  if (typeof data === "string") return data;
+  if (data?.detail) return data.detail;
+  if (data?.error) return data.error;
+  if (data?.vendor_name?.[0]) return data.vendor_name[0];
+  if (data && typeof data === "object") {
+    try {
+      return JSON.stringify(data);
+    } catch {
+      return "Request failed";
+    }
+  }
+  return error?.message || "Request failed";
+};
 
 export const fetchVendors = createAsyncThunk("vendorMaster/fetchAll", async (_, thunkApi) => {
   try {

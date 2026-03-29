@@ -19,6 +19,7 @@ const VendorItemEditPage = lazy(() => import("./pages/VendorItemEditPage"));
 const VendorDetailPage = lazy(() => import("./pages/VendorDetailPage"));
 const IssueMasterCreatePage = lazy(() => import("./pages/IssueMasterCreatePage"));
 const IssueMasterEditPage = lazy(() => import("./pages/IssueMasterEditPage"));
+const UserCreatePage = lazy(() => import("./pages/UserCreatePage"));
 
 function App() {
   return (
@@ -140,6 +141,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <IssueMasterEditPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/users/new"
+            element={
+              <ProtectedRoute>
+                <UserCreatePage />
               </ProtectedRoute>
             }
           />

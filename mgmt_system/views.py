@@ -8,6 +8,8 @@ from auditlog.models import LogEntry
 from auditlog.context import set_actor
 from auth_mgmt.permissions import IsAdminRole
 from decimal import Decimal
+from django.db import IntegrityError
+from django.db.models.deletion import ProtectedError
 
 from .models import (
     DeletedRecord,
@@ -51,7 +53,12 @@ class SizeModelViewSet(viewsets.ModelViewSet):
 
     def perform_destroy(self, instance):
         with set_actor(self.request.user):
-            instance.delete()
+            try:
+                instance.delete()
+            except ProtectedError:
+                raise ValidationError("This record is linked to other records and cannot be deleted.")
+            except IntegrityError:
+                raise ValidationError("Unable to delete record due to database constraints.")
             archive_deleted_record(instance, self.request.user, {"name": instance.name})
 
     @action(detail=True, methods=["get"])
@@ -90,7 +97,12 @@ class ItemModelViewSet(viewsets.ModelViewSet):
 
     def perform_destroy(self, instance):
         with set_actor(self.request.user):
-            instance.delete()
+            try:
+                instance.delete()
+            except ProtectedError:
+                raise ValidationError("This record is linked to other records and cannot be deleted.")
+            except IntegrityError:
+                raise ValidationError("Unable to delete record due to database constraints.")
             archive_deleted_record(instance, self.request.user, {"name": instance.name})
 
     @action(detail=True, methods=["get"])
@@ -136,7 +148,12 @@ class VendorModelViewSet(viewsets.ModelViewSet):
 
     def perform_destroy(self, instance):
         with set_actor(self.request.user):
-            instance.delete()
+            try:
+                instance.delete()
+            except ProtectedError:
+                raise ValidationError("This record is linked to other records and cannot be deleted.")
+            except IntegrityError:
+                raise ValidationError("Unable to delete record due to database constraints.")
             archive_deleted_record(
                 instance,
                 self.request.user,
@@ -182,7 +199,12 @@ class VendorListViewSet(viewsets.ModelViewSet):
 
     def perform_destroy(self, instance):
         with set_actor(self.request.user):
-            instance.delete()
+            try:
+                instance.delete()
+            except ProtectedError:
+                raise ValidationError("This record is linked to other records and cannot be deleted.")
+            except IntegrityError:
+                raise ValidationError("Unable to delete record due to database constraints.")
             archive_deleted_record(instance, self.request.user, {"vendor_name": instance.vendor_name})
 
     @action(detail=True, methods=["get"])
@@ -339,20 +361,25 @@ class WaxReceiveLineViewSet(viewsets.ModelViewSet):
 
     def perform_destroy(self, instance):
         with set_actor(self.request.user):
-            archive_deleted_record(
-                instance,
-                self.request.user,
-                {
-                    "item_name": instance.item.name,
-                    "size_name": instance.size.name,
-                    "wax_receive": instance.wax_receive_id,
-                    "vendor_name": instance.wax_receive.vendor.vendor_name,
-                    "wax_receive_date_time": instance.wax_receive.date_time.isoformat()
-                    if instance.wax_receive.date_time
-                    else None,
-                },
-            )
-            instance.delete()
+            try:
+                archive_deleted_record(
+                    instance,
+                    self.request.user,
+                    {
+                        "item_name": instance.item.name,
+                        "size_name": instance.size.name,
+                        "wax_receive": instance.wax_receive_id,
+                        "vendor_name": instance.wax_receive.vendor.vendor_name,
+                        "wax_receive_date_time": instance.wax_receive.date_time.isoformat()
+                        if instance.wax_receive.date_time
+                        else None,
+                    },
+                )
+                instance.delete()
+            except ProtectedError:
+                raise ValidationError("This record is linked to other records and cannot be deleted.")
+            except IntegrityError:
+                raise ValidationError("Unable to delete record due to database constraints.")
 
     @action(detail=True, methods=["get"])
     def history(self, request, pk=None):
@@ -400,7 +427,12 @@ class IssueMasterViewSet(viewsets.ModelViewSet):
 
     def perform_destroy(self, instance):
         with set_actor(self.request.user):
-            instance.delete()
+            try:
+                instance.delete()
+            except ProtectedError:
+                raise ValidationError("This record is linked to other records and cannot be deleted.")
+            except IntegrityError:
+                raise ValidationError("Unable to delete record due to database constraints.")
             archive_deleted_record(
                 instance,
                 self.request.user,

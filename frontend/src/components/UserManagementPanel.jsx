@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import {
   createUserRequest,
@@ -33,6 +34,7 @@ const buildPermissionRows = (masters, userPermissions = []) => {
 };
 
 const UserManagementPanel = () => {
+  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [masters, setMasters] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -88,14 +90,6 @@ const UserManagementPanel = () => {
       }, {}),
     [users],
   );
-
-  const openCreateModal = () => {
-    setEditingUser(null);
-    setForm(defaultForm);
-    setPermissionRows(buildPermissionRows(masters));
-    setFormError("");
-    setModalOpen(true);
-  };
 
   const openEditModal = (user) => {
     setEditingUser(user);
@@ -218,7 +212,7 @@ const UserManagementPanel = () => {
           <h2>User Management</h2>
           <p>Create normal users and assign master-level read/write permissions.</p>
         </div>
-        <button type="button" className="add-btn" onClick={openCreateModal}>
+        <button type="button" className="add-btn" onClick={() => navigate("/users/new")}>
           Add User
         </button>
       </div>
