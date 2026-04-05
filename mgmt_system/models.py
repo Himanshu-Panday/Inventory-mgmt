@@ -5,6 +5,7 @@ from django.db import models
 class BaseMasterModel(models.Model):
     name = models.CharField(max_length=255)
     date = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -38,6 +39,7 @@ class Item_Model(BaseMasterModel):
 class VendorList_Model(models.Model):
     vendor_name = models.CharField(max_length=255, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -68,6 +70,7 @@ class Vendor_Model(models.Model):
     )
     rate = models.IntegerField()
     date_time = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -95,6 +98,7 @@ class WaxReceive(models.Model):
     weight = models.DecimalField(max_digits=12, decimal_places=3, default=0)
     quantity = models.IntegerField(default=0)
     total_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    is_active = models.BooleanField(default=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -112,7 +116,7 @@ class WaxReceive(models.Model):
         return f"Wax Receive {self.id}"
 
     def recalc_totals(self):
-        totals = self.lines.aggregate(
+        totals = self.lines.filter(is_active=True).aggregate(
             total_weight=models.Sum("in_weight"),
             total_quantity=models.Sum("in_quantity"),
             total_amount=models.Sum("amount"),
@@ -135,12 +139,19 @@ class WaxReceiveLine(models.Model):
         related_name="lines",
     )
     item = models.ForeignKey(Item_Model, on_delete=models.PROTECT, related_name="wax_receive_lines")
-    size = models.ForeignKey(Size_Model, on_delete=models.PROTECT, related_name="wax_receive_lines")
+    size = models.ForeignKey(
+        Size_Model,
+        on_delete=models.PROTECT,
+        related_name="wax_receive_lines",
+        null=True,
+        blank=True,
+    )
     in_weight = models.DecimalField(max_digits=12, decimal_places=3)
     in_quantity = models.IntegerField()
     rate = models.DecimalField(max_digits=12, decimal_places=2)
     amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     image = models.ImageField(upload_to="wax_receive_lines/", null=True, blank=True)
+    is_active = models.BooleanField(default=True)
 
     class Meta:
         ordering = ["id"]
@@ -165,6 +176,7 @@ class IssueMaster(models.Model):
     out_quantity = models.IntegerField()
     description = models.TextField(blank=True)
     date_time = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -192,6 +204,7 @@ class StockManagement_Model(models.Model):
     balance_weight = models.DecimalField(max_digits=12, decimal_places=3, default=0)
     balance_quantity = models.IntegerField(default=0)
     updated_at = models.DateTimeField(auto_now=True)
+    is_active = models.BooleanField(default=True)
 
     class Meta:
         ordering = ["item__name", "size__name"]
@@ -201,25 +214,3 @@ class StockManagement_Model(models.Model):
 
     def __str__(self):
         return f"{self.item.name} - {self.size.name}"
-
-
-class DeletedRecord(models.Model):
-    model_name = models.CharField(max_length=50)
-    object_id = models.CharField(max_length=50)
-    payload = models.JSONField()
-    deleted_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="deleted_records",
-    )
-    deleted_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ["-deleted_at"]
-        verbose_name = "Deleted Record"
-        verbose_name_plural = "Deleted Records"
-
-    def __str__(self):
-        return f"{self.model_name} #{self.object_id}"

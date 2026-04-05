@@ -73,6 +73,14 @@ const HomePage = () => {
       );
     }
 
+    if (activeTab === "Deleted Records" && user?.role === "admin") {
+      return (
+        <Suspense fallback={<div className="content-card"><div className="inline-loader" /></div>}>
+          <DeletedRecordsPanel />
+        </Suspense>
+      );
+    }
+
     if (activeTab === "Vendor-Master") {
       return (
         <Suspense fallback={<div className="content-card"><div className="inline-loader" /></div>}>
@@ -113,14 +121,6 @@ const HomePage = () => {
       return (
         <Suspense fallback={<div className="content-card"><div className="inline-loader" /></div>}>
           <StockManagementPanel />
-        </Suspense>
-      );
-    }
-
-    if (activeTab === "Deleted Records" && user?.role === "admin") {
-      return (
-        <Suspense fallback={<div className="content-card"><div className="inline-loader" /></div>}>
-          <DeletedRecordsPanel />
         </Suspense>
       );
     }

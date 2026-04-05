@@ -57,7 +57,7 @@ const WaxReceiveCreatePage = () => {
   const navItems = useMemo(() => {
     if (!user) return [];
     if (user.role === "admin") {
-      return [...MASTER_TABS.map((item) => item.label), "User Management", "Deleted Records"];
+      return [...MASTER_TABS.map((item) => item.label), "User Management"];
     }
     return MASTER_TABS.filter((tab) => permissionMap.get(tab.key)?.can_read).map(
       (tab) => tab.label,
@@ -138,8 +138,8 @@ const WaxReceiveCreatePage = () => {
       return;
     }
 
-    if (!lineForm.item || !lineForm.size || !lineForm.in_weight || !lineForm.in_quantity) {
-      setLineError("Item, size, weight and quantity are required.");
+    if (!lineForm.item || !lineForm.in_weight || !lineForm.in_quantity) {
+      setLineError("Item, weight and quantity are required.");
       return;
     }
 
@@ -148,7 +148,9 @@ const WaxReceiveCreatePage = () => {
       const payload = new FormData();
       payload.append("wax_receive", String(record.id));
       payload.append("item", String(lineForm.item));
-      payload.append("size", String(lineForm.size));
+      if (lineForm.size) {
+        payload.append("size", String(lineForm.size));
+      }
       payload.append("in_weight", String(lineForm.in_weight));
       payload.append("in_quantity", String(lineForm.in_quantity));
       if (imageFile) {
@@ -306,12 +308,11 @@ const WaxReceiveCreatePage = () => {
               </div>
 
               <div className="form-group">
-                <label htmlFor="wax-line-size">Size</label>
+                <label htmlFor="wax-line-size">Size (optional)</label>
                 <select
                   id="wax-line-size"
                   value={lineForm.size}
                   onChange={(event) => setLineForm((prev) => ({ ...prev, size: event.target.value }))}
-                  required
                   disabled={!record}
                 >
                   <option value="">Select size</option>

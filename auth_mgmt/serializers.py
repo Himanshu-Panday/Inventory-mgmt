@@ -146,7 +146,12 @@ class LoginSerializer(serializers.Serializer):
     def validate(self, attrs):
         email = attrs.get("email")
         password = attrs.get("password")
-        user = authenticate(request=self.context.get("request"), email=email, password=password)
+        # Use USERNAME_FIELD (email) via the username parameter for ModelBackend.
+        user = authenticate(
+            request=self.context.get("request"),
+            username=email,
+            password=password,
+        )
         if not user:
             raise serializers.ValidationError("Invalid email or password.")
         if not user.is_active:

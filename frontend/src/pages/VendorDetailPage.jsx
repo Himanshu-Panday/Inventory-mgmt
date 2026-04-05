@@ -76,7 +76,7 @@ const VendorDetailPage = () => {
   const navItems = useMemo(() => {
     if (!user) return [];
     if (user.role === "admin") {
-      return [...MASTER_TABS.map((item) => item.label), "User Management", "Deleted Records"];
+      return [...MASTER_TABS.map((item) => item.label), "User Management"];
     }
     return MASTER_TABS.filter((tab) => permissionMap.get(tab.key)?.can_read).map(
       (tab) => tab.label,

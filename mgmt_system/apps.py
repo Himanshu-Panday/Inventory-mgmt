@@ -17,4 +17,3 @@ class MgmtSystemConfig(AppConfig):
         auditlog.register(models.WaxReceiveLine)
         auditlog.register(models.IssueMaster)
         auditlog.register(models.StockManagement_Model)
-        auditlog.register(models.DeletedRecord)

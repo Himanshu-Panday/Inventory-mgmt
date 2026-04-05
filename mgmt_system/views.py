@@ -1,4 +1,4 @@
-from rest_framework import permissions, viewsets, mixins
+from rest_framework import permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status
@@ -6,13 +6,11 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from auditlog.models import LogEntry
 from auditlog.context import set_actor
-from auth_mgmt.permissions import IsAdminRole
 from decimal import Decimal
 from django.db import IntegrityError
 from django.db.models.deletion import ProtectedError
 
 from .models import (
-    DeletedRecord,
     Item_Model,
     Size_Model,
     Vendor_Model,
@@ -25,7 +23,6 @@ from .models import (
 from .permissions import MasterAccessPermission
 from .serializers import (
     AuditLogSerializer,
-    DeletedRecordSerializer,
     ItemModelSerializer,
     SizeModelSerializer,
     VendorModelSerializer,
@@ -35,13 +32,26 @@ from .serializers import (
     IssueMasterSerializer,
     StockManagementSerializer,
 )
-from .deleted_records import archive_deleted_record
 
 
 class SizeModelViewSet(viewsets.ModelViewSet):
     queryset = Size_Model.objects.all()
     serializer_class = SizeModelSerializer
     permission_classes = [permissions.IsAuthenticated, MasterAccessPermission]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        if self.request.user.role == "admin" and self.action in [
+            "retrieve",
+            "update",
+            "partial_update",
+            "destroy",
+        ]:
+            return queryset
+        is_active = self.request.query_params.get("is_active")
+        if is_active in ("0", "false", "False") and self.request.user.role == "admin":
+            return queryset.filter(is_active=False)
+        return queryset.filter(is_active=True)
 
     def perform_create(self, serializer):
         with set_actor(self.request.user):
@@ -54,12 +64,12 @@ class SizeModelViewSet(viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         with set_actor(self.request.user):
             try:
-                instance.delete()
+                instance.is_active = False
+                instance.save(update_fields=["is_active"])
             except ProtectedError:
                 raise ValidationError("This record is linked to other records and cannot be deleted.")
             except IntegrityError:
                 raise ValidationError("Unable to delete record due to database constraints.")
-            archive_deleted_record(instance, self.request.user, {"name": instance.name})
 
     @action(detail=True, methods=["get"])
     def history(self, request, pk=None):
@@ -87,6 +97,20 @@ class ItemModelViewSet(viewsets.ModelViewSet):
     serializer_class = ItemModelSerializer
     permission_classes = [permissions.IsAuthenticated, MasterAccessPermission]
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        if self.request.user.role == "admin" and self.action in [
+            "retrieve",
+            "update",
+            "partial_update",
+            "destroy",
+        ]:
+            return queryset
+        is_active = self.request.query_params.get("is_active")
+        if is_active in ("0", "false", "False") and self.request.user.role == "admin":
+            return queryset.filter(is_active=False)
+        return queryset.filter(is_active=True)
+
     def perform_create(self, serializer):
         with set_actor(self.request.user):
             serializer.save(created_by=self.request.user)
@@ -98,12 +122,12 @@ class ItemModelViewSet(viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         with set_actor(self.request.user):
             try:
-                instance.delete()
+                instance.is_active = False
+                instance.save(update_fields=["is_active"])
             except ProtectedError:
                 raise ValidationError("This record is linked to other records and cannot be deleted.")
             except IntegrityError:
                 raise ValidationError("Unable to delete record due to database constraints.")
-            archive_deleted_record(instance, self.request.user, {"name": instance.name})
 
     @action(detail=True, methods=["get"])
     def history(self, request, pk=None):
@@ -133,6 +157,21 @@ class VendorModelViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
+        if self.request.user.role == "admin" and self.action in [
+            "retrieve",
+            "update",
+            "partial_update",
+            "destroy",
+        ]:
+            vendor_id = self.request.query_params.get("vendor")
+            if vendor_id:
+                queryset = queryset.filter(vendor_id=vendor_id)
+            return queryset
+        is_active = self.request.query_params.get("is_active")
+        if is_active in ("0", "false", "False") and self.request.user.role == "admin":
+            queryset = queryset.filter(is_active=False)
+        else:
+            queryset = queryset.filter(is_active=True)
         vendor_id = self.request.query_params.get("vendor")
         if vendor_id:
             queryset = queryset.filter(vendor_id=vendor_id)
@@ -149,19 +188,12 @@ class VendorModelViewSet(viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         with set_actor(self.request.user):
             try:
-                instance.delete()
+                instance.is_active = False
+                instance.save(update_fields=["is_active"])
             except ProtectedError:
                 raise ValidationError("This record is linked to other records and cannot be deleted.")
             except IntegrityError:
                 raise ValidationError("Unable to delete record due to database constraints.")
-            archive_deleted_record(
-                instance,
-                self.request.user,
-                {
-                    "vendor_name": instance.vendor.vendor_name,
-                    "item_name_label": instance.item_name.name,
-                },
-            )
 
     @action(detail=True, methods=["get"])
     def history(self, request, pk=None):
@@ -189,6 +221,20 @@ class VendorListViewSet(viewsets.ModelViewSet):
     serializer_class = VendorListSerializer
     permission_classes = [permissions.IsAuthenticated, MasterAccessPermission]
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        if self.request.user.role == "admin" and self.action in [
+            "retrieve",
+            "update",
+            "partial_update",
+            "destroy",
+        ]:
+            return queryset
+        is_active = self.request.query_params.get("is_active")
+        if is_active in ("0", "false", "False") and self.request.user.role == "admin":
+            return queryset.filter(is_active=False)
+        return queryset.filter(is_active=True)
+
     def perform_create(self, serializer):
         with set_actor(self.request.user):
             serializer.save(created_by=self.request.user)
@@ -200,12 +246,12 @@ class VendorListViewSet(viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         with set_actor(self.request.user):
             try:
-                instance.delete()
+                instance.is_active = False
+                instance.save(update_fields=["is_active"])
             except ProtectedError:
                 raise ValidationError("This record is linked to other records and cannot be deleted.")
             except IntegrityError:
                 raise ValidationError("Unable to delete record due to database constraints.")
-            archive_deleted_record(instance, self.request.user, {"vendor_name": instance.vendor_name})
 
     @action(detail=True, methods=["get"])
     def history(self, request, pk=None):
@@ -233,6 +279,20 @@ class WaxReceiveViewSet(viewsets.ModelViewSet):
     serializer_class = WaxReceiveSerializer
     permission_classes = [permissions.IsAuthenticated, MasterAccessPermission]
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        if self.request.user.role == "admin" and self.action in [
+            "retrieve",
+            "update",
+            "partial_update",
+            "destroy",
+        ]:
+            return queryset
+        is_active = self.request.query_params.get("is_active")
+        if is_active in ("0", "false", "False") and self.request.user.role == "admin":
+            return queryset.filter(is_active=False)
+        return queryset.filter(is_active=True)
+
     def perform_create(self, serializer):
         with set_actor(self.request.user):
             serializer.save(created_by=self.request.user)
@@ -243,24 +303,10 @@ class WaxReceiveViewSet(viewsets.ModelViewSet):
 
     def perform_destroy(self, instance):
         with set_actor(self.request.user):
-            if instance.lines.exists():
+            if instance.lines.filter(is_active=True).exists():
                 raise ValidationError("Delete all wax receive lines before deleting this record.")
-            lines_payload = [
-                {
-                    "item": line.item_id,
-                    "size": line.size_id,
-                    "in_weight": str(line.in_weight),
-                    "in_quantity": line.in_quantity,
-                    "rate": str(line.rate),
-                }
-                for line in instance.lines.all()
-            ]
-            archive_deleted_record(
-                instance,
-                self.request.user,
-                {"vendor_name": instance.vendor.vendor_name, "lines": lines_payload},
-            )
-            instance.delete()
+            instance.is_active = False
+            instance.save(update_fields=["is_active"])
 
     @action(detail=True, methods=["get"])
     def history(self, request, pk=None):
@@ -287,7 +333,7 @@ class WaxReceiveViewSet(viewsets.ModelViewSet):
         wax_receive = self.get_object()
 
         if request.method == "GET":
-            lines = wax_receive.lines.select_related("item", "size").all()
+            lines = wax_receive.lines.select_related("item", "size").filter(is_active=True)
             serializer = WaxReceiveLineSerializer(lines, many=True, context={"request": request})
             return Response(serializer.data)
 
@@ -297,7 +343,7 @@ class WaxReceiveViewSet(viewsets.ModelViewSet):
         )
         serializer.is_valid(raise_exception=True)
         item = serializer.validated_data["item"]
-        size = serializer.validated_data["size"]
+        size = serializer.validated_data.get("size")
         in_weight = serializer.validated_data["in_weight"]
         in_quantity = serializer.validated_data["in_quantity"]
 
@@ -318,6 +364,7 @@ class WaxReceiveViewSet(viewsets.ModelViewSet):
                 in_weight=in_weight,
                 in_quantity=in_quantity,
                 rate=vendor_rate.rate,
+                is_active=True,
             )
 
         return Response(
@@ -337,7 +384,17 @@ class WaxReceiveLineViewSet(viewsets.ModelViewSet):
         wax_receive_id = self.request.query_params.get("wax_receive")
         if wax_receive_id:
             queryset = queryset.filter(wax_receive_id=wax_receive_id)
-        return queryset
+        if self.request.user.role == "admin" and self.action in [
+            "retrieve",
+            "update",
+            "partial_update",
+            "destroy",
+        ]:
+            return queryset
+        is_active = self.request.query_params.get("is_active")
+        if is_active in ("0", "false", "False") and self.request.user.role == "admin":
+            return queryset.filter(is_active=False)
+        return queryset.filter(is_active=True, wax_receive__is_active=True)
 
     def _resolve_rate(self, wax_receive, item):
         vendor_rate = Vendor_Model.objects.filter(vendor=wax_receive.vendor, item_name=item).first()
@@ -350,7 +407,7 @@ class WaxReceiveLineViewSet(viewsets.ModelViewSet):
         item = serializer.validated_data["item"]
         rate = self._resolve_rate(wax_receive, item)
         with set_actor(self.request.user):
-            serializer.save(rate=rate)
+            serializer.save(rate=rate, is_active=True)
 
     def perform_update(self, serializer):
         wax_receive = serializer.instance.wax_receive
@@ -362,20 +419,10 @@ class WaxReceiveLineViewSet(viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         with set_actor(self.request.user):
             try:
-                archive_deleted_record(
-                    instance,
-                    self.request.user,
-                    {
-                        "item_name": instance.item.name,
-                        "size_name": instance.size.name,
-                        "wax_receive": instance.wax_receive_id,
-                        "vendor_name": instance.wax_receive.vendor.vendor_name,
-                        "wax_receive_date_time": instance.wax_receive.date_time.isoformat()
-                        if instance.wax_receive.date_time
-                        else None,
-                    },
-                )
-                instance.delete()
+                instance.is_active = False
+                instance.save(update_fields=["is_active"])
+                instance.wax_receive.recalc_totals()
+                instance.wax_receive.save(update_fields=["weight", "quantity", "total_amount"])
             except ProtectedError:
                 raise ValidationError("This record is linked to other records and cannot be deleted.")
             except IntegrityError:
@@ -407,6 +454,20 @@ class IssueMasterViewSet(viewsets.ModelViewSet):
     serializer_class = IssueMasterSerializer
     permission_classes = [permissions.IsAuthenticated, MasterAccessPermission]
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        if self.request.user.role == "admin" and self.action in [
+            "retrieve",
+            "update",
+            "partial_update",
+            "destroy",
+        ]:
+            return queryset
+        is_active = self.request.query_params.get("is_active")
+        if is_active in ("0", "false", "False") and self.request.user.role == "admin":
+            return queryset.filter(is_active=False)
+        return queryset.filter(is_active=True)
+
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -428,19 +489,12 @@ class IssueMasterViewSet(viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         with set_actor(self.request.user):
             try:
-                instance.delete()
+                instance.is_active = False
+                instance.save(update_fields=["is_active"])
             except ProtectedError:
                 raise ValidationError("This record is linked to other records and cannot be deleted.")
             except IntegrityError:
                 raise ValidationError("Unable to delete record due to database constraints.")
-            archive_deleted_record(
-                instance,
-                self.request.user,
-                {
-                    "item_name": instance.item.name,
-                    "size_name": instance.size.name,
-                },
-            )
 
     @action(detail=True, methods=["get"])
     def history(self, request, pk=None):
@@ -472,7 +526,7 @@ class StockManagementViewSet(viewsets.ReadOnlyModelViewSet):
     def in_details(self, request, pk=None):
         stock = self.get_object()
         rows = (
-            WaxReceiveLine.objects.filter(item=stock.item, size=stock.size)
+            WaxReceiveLine.objects.filter(item=stock.item, size=stock.size, is_active=True)
             .select_related("wax_receive__vendor")
             .order_by("-id")
         )
@@ -486,173 +540,3 @@ class StockManagementViewSet(viewsets.ReadOnlyModelViewSet):
             for row in rows
         ]
         return Response(payload)
-
-
-class DeletedRecordViewSet(
-    mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.DestroyModelMixin, viewsets.GenericViewSet
-):
-    queryset = DeletedRecord.objects.select_related("deleted_by").all()
-    serializer_class = DeletedRecordSerializer
-    permission_classes = [permissions.IsAuthenticated, IsAdminRole]
-
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        model_name = self.request.query_params.get("model")
-        if model_name:
-            queryset = queryset.filter(model_name=model_name)
-        return queryset
-
-    @action(detail=True, methods=["post"])
-    def recover(self, request, pk=None):
-        record = self.get_object()
-        payload = record.payload or {}
-
-        def resolve_user(user_id):
-            if not user_id:
-                return None
-            try:
-                return request.user.__class__.objects.get(pk=user_id)
-            except request.user.__class__.DoesNotExist:
-                return None
-
-        created_by = resolve_user(payload.get("created_by"))
-
-        try:
-            if record.model_name == "item_model":
-                obj = Item_Model.objects.create(name=payload.get("name", ""), created_by=created_by)
-            elif record.model_name == "size_model":
-                obj = Size_Model.objects.create(name=payload.get("name", ""), created_by=created_by)
-            elif record.model_name == "vendor_list":
-                obj = VendorList_Model.objects.create(
-                    vendor_name=payload.get("vendor_name", ""), created_by=created_by
-                )
-            elif record.model_name == "vendor_model":
-                vendor_id = payload.get("vendor")
-                item_id = payload.get("item_name")
-                if not vendor_id or not item_id:
-                    return Response(
-                        {"detail": "Missing vendor or item for recovery."},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-                vendor = VendorList_Model.objects.filter(pk=vendor_id).first()
-                item = Item_Model.objects.filter(pk=item_id).first()
-                if not vendor and payload.get("vendor_name"):
-                    vendor = VendorList_Model.objects.filter(
-                        vendor_name=payload.get("vendor_name")
-                    ).first()
-                    if not vendor:
-                        vendor = VendorList_Model.objects.create(
-                            vendor_name=payload.get("vendor_name"), created_by=created_by
-                        )
-                if not item and payload.get("item_name_label"):
-                    item = Item_Model.objects.filter(name=payload.get("item_name_label")).first()
-                    if not item:
-                        item = Item_Model.objects.create(
-                            name=payload.get("item_name_label"), created_by=created_by
-                        )
-                if not vendor or not item:
-                    return Response(
-                        {"detail": "Vendor or item no longer exists."},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-                obj = Vendor_Model.objects.create(
-                    vendor=vendor,
-                    item_name=item,
-                    rate=payload.get("rate") or 0,
-                    created_by=created_by,
-                )
-            elif record.model_name == "wax_receive":
-                vendor_id = payload.get("vendor")
-                vendor = VendorList_Model.objects.filter(pk=vendor_id).first()
-                if not vendor:
-                    return Response(
-                        {"detail": "Vendor no longer exists."},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-                if WaxReceive.objects.filter(vendor=vendor).exists():
-                    return Response(
-                        {"detail": "Record already there and it will create conflict."},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-                obj = WaxReceive.objects.create(vendor=vendor, created_by=created_by)
-                lines = payload.get("lines") or []
-                for line in lines:
-                    item = Item_Model.objects.filter(pk=line.get("item")).first()
-                    size = Size_Model.objects.filter(pk=line.get("size")).first()
-                    if not item or not size:
-                        continue
-                    WaxReceiveLine.objects.create(
-                        wax_receive=obj,
-                        item=item,
-                        size=size,
-                        in_weight=Decimal(str(line.get("in_weight") or 0)),
-                        in_quantity=int(line.get("in_quantity") or 0),
-                        rate=Decimal(str(line.get("rate") or 0)),
-                    )
-            elif record.model_name == "issue_master":
-                item = Item_Model.objects.filter(pk=payload.get("item")).first()
-                size = Size_Model.objects.filter(pk=payload.get("size")).first()
-                if not item or not size:
-                    return Response(
-                        {"detail": "Item or size no longer exists."},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-                obj = IssueMaster.objects.create(
-                    item=item,
-                    size=size,
-                    out_weight=payload.get("out_weight") or 0,
-                    out_quantity=payload.get("out_quantity") or 0,
-                    description=payload.get("description") or "",
-                    created_by=created_by,
-                )
-            elif record.model_name == "wax_receive_line":
-                wax_receive = WaxReceive.objects.filter(pk=payload.get("wax_receive")).first()
-                if not wax_receive:
-                    vendor_name = payload.get("vendor_name")
-                    wax_dt = payload.get("wax_receive_date_time")
-                    if vendor_name:
-                        queryset = WaxReceive.objects.filter(
-                            vendor__vendor_name=vendor_name
-                        ).order_by("-date_time")
-                        if wax_dt:
-                            wax_receive = queryset.filter(date_time=wax_dt).first()
-                        if not wax_receive:
-                            wax_receive = queryset.first()
-                    if not wax_receive and vendor_name:
-                        vendor = VendorList_Model.objects.filter(vendor_name=vendor_name).first()
-                        if vendor:
-                            wax_receive = WaxReceive.objects.create(
-                                vendor=vendor, created_by=created_by
-                            )
-                item = Item_Model.objects.filter(pk=payload.get("item")).first()
-                if not item and payload.get("item_name"):
-                    item = Item_Model.objects.filter(name=payload.get("item_name")).first()
-                size = Size_Model.objects.filter(pk=payload.get("size")).first()
-                if not size and payload.get("size_name"):
-                    size = Size_Model.objects.filter(name=payload.get("size_name")).first()
-                if not wax_receive or not item or not size:
-                    return Response(
-                        {"detail": "Wax receive, item, or size no longer exists."},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-                obj = WaxReceiveLine.objects.create(
-                    wax_receive=wax_receive,
-                    item=item,
-                    size=size,
-                    in_weight=Decimal(str(payload.get("in_weight") or 0)),
-                    in_quantity=int(payload.get("in_quantity") or 0),
-                    rate=Decimal(str(payload.get("rate") or 0)),
-                )
-            else:
-                return Response(
-                    {"detail": "Recovery not supported for this record."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-        except Exception as exc:
-            return Response(
-                {"detail": f"Unable to recover record: {exc}"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        record.delete()
-        return Response({"detail": "Recovered", "id": obj.id}, status=status.HTTP_200_OK)

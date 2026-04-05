@@ -56,7 +56,7 @@ const WaxReceiveLineEditPage = () => {
   const navItems = useMemo(() => {
     if (!user) return [];
     if (user.role === "admin") {
-      return [...MASTER_TABS.map((item) => item.label), "User Management", "Deleted Records"];
+      return [...MASTER_TABS.map((item) => item.label), "User Management"];
     }
     return MASTER_TABS.filter((tab) => permissionMap.get(tab.key)?.can_read).map(
       (tab) => tab.label,
@@ -78,7 +78,7 @@ const WaxReceiveLineEditPage = () => {
         setLine(lineRecord);
         setForm({
           item: String(lineRecord.item),
-          size: String(lineRecord.size),
+          size: lineRecord.size ? String(lineRecord.size) : "",
           in_weight: String(lineRecord.in_weight),
           in_quantity: String(lineRecord.in_quantity),
         });
@@ -137,8 +137,8 @@ const WaxReceiveLineEditPage = () => {
       return;
     }
 
-    if (!form.item || !form.size || !form.in_weight || !form.in_quantity) {
-      setFormError("Item, size, weight and quantity are required.");
+    if (!form.item || !form.in_weight || !form.in_quantity) {
+      setFormError("Item, weight and quantity are required.");
       return;
     }
 
@@ -147,7 +147,9 @@ const WaxReceiveLineEditPage = () => {
       const payload = new FormData();
       payload.append("wax_receive", String(record.id));
       payload.append("item", String(form.item));
-      payload.append("size", String(form.size));
+      if (form.size) {
+        payload.append("size", String(form.size));
+      }
       payload.append("in_weight", String(form.in_weight));
       payload.append("in_quantity", String(form.in_quantity));
       if (imageFile) {
@@ -291,12 +293,11 @@ const WaxReceiveLineEditPage = () => {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="wax-line-size">Size</label>
+                  <label htmlFor="wax-line-size">Size (optional)</label>
                   <select
                     id="wax-line-size"
                     value={form.size}
                     onChange={(event) => setForm((prev) => ({ ...prev, size: event.target.value }))}
-                    required
                     disabled={!record}
                   >
                     <option value="">Select size</option>

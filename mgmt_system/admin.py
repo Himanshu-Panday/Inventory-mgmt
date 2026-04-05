@@ -9,7 +9,6 @@ from .models import (
     WaxReceiveLine,
     IssueMaster,
     StockManagement_Model,
-    DeletedRecord,
 )
 
 
@@ -79,10 +78,3 @@ class StockManagementAdmin(admin.ModelAdmin):
         "updated_at",
     ]
     list_filter = ["item", "size"]
-
-
-@admin.register(DeletedRecord)
-class DeletedRecordAdmin(admin.ModelAdmin):
-    list_display = ["id", "model_name", "object_id", "deleted_at", "deleted_by"]
-    list_filter = ["model_name", "deleted_at"]
-    search_fields = ["object_id", "model_name"]

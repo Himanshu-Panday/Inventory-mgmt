@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_ROOT = import.meta.env.VITE_API_ROOT || "http://127.0.0.1:8000";
+const API_ROOT = import.meta.env.VITE_API_BASE_URL || window.location.origin;
 const MGMT_BASE_URL = `${API_ROOT}/api/mgmt`;
 const AUTH_BASE_URL = `${API_ROOT}/api/auth`;
 const ACCESS_TOKEN_KEY = "accessToken";
@@ -80,8 +80,12 @@ mgmtApi.interceptors.response.use(
   },
 );
 
-export const listSizeModels = async () => {
-  const { data } = await mgmtApi.get("/size-models/");
+export const listSizeModels = async (options = {}) => {
+  const params = {};
+  if (typeof options.is_active !== "undefined") {
+    params.is_active = options.is_active ? "1" : "0";
+  }
+  const { data } = await mgmtApi.get("/size-models/", { params });
   return data;
 };
 
@@ -105,8 +109,12 @@ export const listSizeModelHistory = async (id) => {
   return data;
 };
 
-export const listItemModels = async () => {
-  const { data } = await mgmtApi.get("/item-models/");
+export const listItemModels = async (options = {}) => {
+  const params = {};
+  if (typeof options.is_active !== "undefined") {
+    params.is_active = options.is_active ? "1" : "0";
+  }
+  const { data } = await mgmtApi.get("/item-models/", { params });
   return data;
 };
 
@@ -134,6 +142,9 @@ export const listVendorModels = async (options = {}) => {
   const params = {};
   if (options.vendorId) {
     params.vendor = options.vendorId;
+  }
+  if (typeof options.is_active !== "undefined") {
+    params.is_active = options.is_active ? "1" : "0";
   }
   const { data } = await mgmtApi.get("/vendor-models/", { params });
   return data;
@@ -164,8 +175,12 @@ export const listVendorModelHistory = async (id) => {
   return data;
 };
 
-export const listVendorLists = async () => {
-  const { data } = await mgmtApi.get("/vendor-lists/");
+export const listVendorLists = async (options = {}) => {
+  const params = {};
+  if (typeof options.is_active !== "undefined") {
+    params.is_active = options.is_active ? "1" : "0";
+  }
+  const { data } = await mgmtApi.get("/vendor-lists/", { params });
   return data;
 };
 
@@ -194,8 +209,12 @@ export const listVendorListHistory = async (id) => {
   return data;
 };
 
-export const listWaxReceives = async () => {
-  const { data } = await mgmtApi.get("/wax-receives/");
+export const listWaxReceives = async (options = {}) => {
+  const params = {};
+  if (typeof options.is_active !== "undefined") {
+    params.is_active = options.is_active ? "1" : "0";
+  }
+  const { data } = await mgmtApi.get("/wax-receives/", { params });
   return data;
 };
 
@@ -224,10 +243,20 @@ export const listWaxReceiveHistory = async (id) => {
   return data;
 };
 
-export const listWaxReceiveLines = async (waxReceiveId) => {
-  const { data } = await mgmtApi.get("/wax-receive-lines/", {
-    params: { wax_receive: waxReceiveId },
-  });
+export const listWaxReceiveLines = async (waxReceiveIdOrOptions, options = {}) => {
+  let waxReceiveId = waxReceiveIdOrOptions;
+  if (waxReceiveIdOrOptions && typeof waxReceiveIdOrOptions === "object") {
+    options = waxReceiveIdOrOptions;
+    waxReceiveId = null;
+  }
+  const params = {};
+  if (waxReceiveId) {
+    params.wax_receive = waxReceiveId;
+  }
+  if (typeof options.is_active !== "undefined") {
+    params.is_active = options.is_active ? "1" : "0";
+  }
+  const { data } = await mgmtApi.get("/wax-receive-lines/", { params });
   return data;
 };
 
@@ -262,8 +291,12 @@ export const listWaxReceiveLineHistory = async (id) => {
   return data;
 };
 
-export const listIssueMasters = async () => {
-  const { data } = await mgmtApi.get("/issue-masters/");
+export const listIssueMasters = async (options = {}) => {
+  const params = {};
+  if (typeof options.is_active !== "undefined") {
+    params.is_active = options.is_active ? "1" : "0";
+  }
+  const { data } = await mgmtApi.get("/issue-masters/", { params });
   return data;
 };
 
@@ -300,23 +333,4 @@ export const listStockManagement = async () => {
 export const listStockInDetails = async (id) => {
   const { data } = await mgmtApi.get(`/stock-management/${id}/in_details/`);
   return data;
-};
-
-export const listDeletedRecords = async (modelName) => {
-  const params = {};
-  if (modelName) {
-    params.model = modelName;
-  }
-  const { data } = await mgmtApi.get("/deleted-records/", { params });
-  return data;
-};
-
-export const recoverDeletedRecord = async (id) => {
-  const { data } = await mgmtApi.post(`/deleted-records/${id}/recover/`);
-  return data;
-};
-
-export const deleteDeletedRecord = async (id) => {
-  await mgmtApi.delete(`/deleted-records/${id}/`);
-  return id;
 };

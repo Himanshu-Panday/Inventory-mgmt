@@ -9,7 +9,6 @@ from .models import (
     WaxReceiveLine,
     IssueMaster,
     StockManagement_Model,
-    DeletedRecord,
 )
 
 
@@ -22,6 +21,7 @@ class SizeModelSerializer(serializers.ModelSerializer):
             "id",
             "name",
             "date",
+            "is_active",
             "created_by",
             "created_by_email",
             "created_at",
@@ -46,6 +46,7 @@ class ItemModelSerializer(serializers.ModelSerializer):
             "id",
             "name",
             "date",
+            "is_active",
             "created_by",
             "created_by_email",
             "created_at",
@@ -76,6 +77,7 @@ class VendorModelSerializer(serializers.ModelSerializer):
             "item_name_label",
             "rate",
             "date_time",
+            "is_active",
             "created_by",
             "created_by_email",
         ]
@@ -94,7 +96,14 @@ class VendorListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = VendorList_Model
-        fields = ["id", "vendor_name", "created_at", "created_by", "created_by_email"]
+        fields = [
+            "id",
+            "vendor_name",
+            "created_at",
+            "is_active",
+            "created_by",
+            "created_by_email",
+        ]
         read_only_fields = ["id", "created_at", "created_by", "created_by_email"]
 
 
@@ -108,8 +117,14 @@ class AuditLogSerializer(serializers.Serializer):
 
 class WaxReceiveLineSerializer(serializers.ModelSerializer):
     item_name = serializers.CharField(source="item.name", read_only=True)
-    size_name = serializers.CharField(source="size.name", read_only=True)
+    size_name = serializers.SerializerMethodField()
+    size = serializers.PrimaryKeyRelatedField(
+        queryset=Size_Model.objects.all(),
+        required=False,
+        allow_null=True,
+    )
     image = serializers.ImageField(required=False, allow_null=True)
+    is_active = serializers.BooleanField(required=False, default=True)
 
     class Meta:
         model = WaxReceiveLine
@@ -125,8 +140,12 @@ class WaxReceiveLineSerializer(serializers.ModelSerializer):
             "rate",
             "amount",
             "image",
+            "is_active",
         ]
         read_only_fields = ["id", "item_name", "size_name", "rate", "amount"]
+
+    def get_size_name(self, instance):
+        return instance.size.name if instance.size else None
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -143,6 +162,7 @@ class WaxReceiveLineSerializer(serializers.ModelSerializer):
 
 class WaxReceiveSerializer(serializers.ModelSerializer):
     vendor_name = serializers.CharField(source="vendor.vendor_name", read_only=True)
+    created_by_email = serializers.EmailField(source="created_by.email", read_only=True)
 
     class Meta:
         model = WaxReceive
@@ -154,7 +174,9 @@ class WaxReceiveSerializer(serializers.ModelSerializer):
             "weight",
             "quantity",
             "total_amount",
+            "is_active",
             "created_by",
+            "created_by_email",
         ]
         read_only_fields = [
             "id",
@@ -164,6 +186,7 @@ class WaxReceiveSerializer(serializers.ModelSerializer):
             "quantity",
             "total_amount",
             "created_by",
+            "created_by_email",
         ]
 
 
@@ -184,6 +207,7 @@ class IssueMasterSerializer(serializers.ModelSerializer):
             "out_quantity",
             "description",
             "date_time",
+            "is_active",
             "created_by",
             "created_by_email",
         ]
@@ -209,54 +233,6 @@ class StockManagementSerializer(serializers.ModelSerializer):
             "balance_weight",
             "balance_quantity",
             "updated_at",
+            "is_active",
         ]
         read_only_fields = fields
-
-
-class DeletedRecordSerializer(serializers.ModelSerializer):
-    deleted_by_email = serializers.EmailField(source="deleted_by.email", read_only=True)
-    display_name = serializers.SerializerMethodField()
-
-    class Meta:
-        model = DeletedRecord
-        fields = [
-            "id",
-            "model_name",
-            "object_id",
-            "payload",
-            "deleted_by",
-            "deleted_by_email",
-            "deleted_at",
-            "display_name",
-        ]
-        read_only_fields = fields
-
-    def get_display_name(self, obj):
-        payload = obj.payload or {}
-        if obj.model_name == "item_model":
-            return payload.get("name")
-        if obj.model_name == "size_model":
-            return payload.get("name")
-        if obj.model_name == "vendor_list":
-            return payload.get("vendor_name")
-        if obj.model_name == "vendor_model":
-            vendor = payload.get("vendor_name")
-            item = payload.get("item_name_label")
-            if vendor and item:
-                return f"{vendor} - {item}"
-            return vendor or item
-        if obj.model_name == "wax_receive":
-            return payload.get("vendor_name") or f"Wax Receive #{obj.object_id}"
-        if obj.model_name == "issue_master":
-            item = payload.get("item_name")
-            size = payload.get("size_name")
-            if item and size:
-                return f"{item} - {size}"
-            return item or size
-        if obj.model_name == "wax_receive_line":
-            item = payload.get("item_name")
-            size = payload.get("size_name")
-            if item and size:
-                return f"{item} - {size}"
-            return item or size
-        return obj.object_id

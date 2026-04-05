@@ -6,11 +6,17 @@ from .models import IssueMaster, StockManagement_Model, WaxReceiveLine
 
 
 def _recalc_stock(item_id, size_id):
-    in_totals = WaxReceiveLine.objects.filter(item_id=item_id, size_id=size_id).aggregate(
+    if not size_id:
+        return
+    in_totals = WaxReceiveLine.objects.filter(
+        item_id=item_id, size_id=size_id, is_active=True, wax_receive__is_active=True
+    ).aggregate(
         total_weight=Sum("in_weight"),
         total_quantity=Sum("in_quantity"),
     )
-    out_totals = IssueMaster.objects.filter(item_id=item_id, size_id=size_id).aggregate(
+    out_totals = IssueMaster.objects.filter(
+        item_id=item_id, size_id=size_id, is_active=True
+    ).aggregate(
         total_weight=Sum("out_weight"),
         total_quantity=Sum("out_quantity"),
     )

@@ -10,7 +10,6 @@ from .views import (
     WaxReceiveLineViewSet,
     IssueMasterViewSet,
     StockManagementViewSet,
-    DeletedRecordViewSet,
 )
 
 router = DefaultRouter()
@@ -22,7 +21,6 @@ router.register("wax-receives", WaxReceiveViewSet, basename="wax-receive")
 router.register("wax-receive-lines", WaxReceiveLineViewSet, basename="wax-receive-line")
 router.register("issue-masters", IssueMasterViewSet, basename="issue-master")
 router.register("stock-management", StockManagementViewSet, basename="stock-management")
-router.register("deleted-records", DeletedRecordViewSet, basename="deleted-record")
 
 urlpatterns = [
     path("", include(router.urls)),

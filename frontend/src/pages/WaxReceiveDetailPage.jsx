@@ -22,7 +22,7 @@ const MASTER_TABS = [
   { key: "stock_management", label: "StockManagement" },
 ];
 
-const API_ROOT = import.meta.env.VITE_API_ROOT || "http://127.0.0.1:8000";
+const API_ROOT = import.meta.env.VITE_API_BASE_URL || window.location.origin;
 
 const formatDateTime = (value) => {
   if (!value) return "-";
@@ -113,8 +113,6 @@ const WaxReceiveDetailPage = () => {
     [waxReceives, id],
   );
 
-  
-
   const openLineHistoryModal = async (line) => {
     setLineHistoryTitle(`${line.item_name} (${line.size_name})`);
     setLineHistoryLoading(true);
@@ -176,7 +174,6 @@ const WaxReceiveDetailPage = () => {
       setDeleting(false);
     }
   };
-
 
   const content = !record ? (
     <div className="content-card">
@@ -325,7 +322,6 @@ const WaxReceiveDetailPage = () => {
           <div ref={sentinelRefFiltered} className="inline-loader" />
         )}
       </div>
-
 
       {viewImageUrl && (
         <div className="modal-overlay" onClick={() => setViewImageUrl("")}>
@@ -571,4 +567,3 @@ const WaxReceiveDetailPage = () => {
 };
 
 export default WaxReceiveDetailPage;
-
