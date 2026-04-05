@@ -372,6 +372,8 @@ button:disabled {
   box-shadow: 0 18px 35px rgba(5, 16, 42, 0.2);
   padding: 1.3rem;
   z-index: 20;
+  transform-origin: top right;
+  animation: profile-slide 180ms ease-out;
 }
 
 .profile-card h2 {
@@ -381,6 +383,25 @@ button:disabled {
 
 .profile-card p {
   margin: 0 0 1rem;
+}
+
+.profile-card button {
+  background: #d64545;
+}
+
+.profile-card button:hover {
+  background: #b92f2f;
+}
+
+@keyframes profile-slide {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .content-card {

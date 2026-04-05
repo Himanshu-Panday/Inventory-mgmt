@@ -19,7 +19,7 @@ class MasterAccessPermission(BasePermission):
         user = request.user
         if not user or not user.is_authenticated:
             return False
-        if user.role == "admin":
+        if user.role == "admin" or user.is_staff or user.is_superuser:
             return True
 
         master_name = MASTER_BY_BASENAME.get(getattr(view, "basename", ""))

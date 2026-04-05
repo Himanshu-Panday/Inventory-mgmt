@@ -105,7 +105,8 @@ const DeletedRecordsPanel = () => {
     activeConfig
       .fetch()
       .then((rows) => {
-        setRecords(rows);
+        const inactiveRows = rows.filter((record) => record.is_active !== true);
+        setRecords(inactiveRows);
       })
       .catch(() => setError("Unable to load deleted records."))
       .finally(() => setLoading(false));

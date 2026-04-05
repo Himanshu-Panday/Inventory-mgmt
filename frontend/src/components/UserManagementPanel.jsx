@@ -249,15 +249,17 @@ const UserManagementPanel = () => {
                     <td>{permissionSummary[user.id] || "No access assigned"}</td>
                     <td>
                       <div className="action-group">
-                        <button
-                          type="button"
-                          className="small-btn"
-                          data-action="edit"
-                          data-icon="✎"
-                          onClick={() => openEditModal(user)}
-                        >
-                          Edit
-                        </button>
+                        {user.role !== "admin" && (
+                          <button
+                            type="button"
+                            className="small-btn"
+                            data-action="edit"
+                            data-icon="✎"
+                            onClick={() => openEditModal(user)}
+                          >
+                            Edit
+                          </button>
+                        )}
                         {user.is_active ? (
                           <button
                             type="button"
