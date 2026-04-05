@@ -216,7 +216,7 @@ class IssueMasterSerializer(serializers.ModelSerializer):
 
 class StockManagementSerializer(serializers.ModelSerializer):
     item_name = serializers.CharField(source="item.name", read_only=True)
-    size_name = serializers.CharField(source="size.name", read_only=True)
+    size_name = serializers.SerializerMethodField()
 
     class Meta:
         model = StockManagement_Model
@@ -236,3 +236,6 @@ class StockManagementSerializer(serializers.ModelSerializer):
             "is_active",
         ]
         read_only_fields = fields
+
+    def get_size_name(self, instance):
+        return instance.size.name if instance.size else None

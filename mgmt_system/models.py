@@ -196,7 +196,13 @@ class IssueMaster(models.Model):
 
 class StockManagement_Model(models.Model):
     item = models.ForeignKey(Item_Model, on_delete=models.PROTECT, related_name="stock_rows")
-    size = models.ForeignKey(Size_Model, on_delete=models.PROTECT, related_name="stock_rows")
+    size = models.ForeignKey(
+        Size_Model,
+        on_delete=models.PROTECT,
+        related_name="stock_rows",
+        null=True,
+        blank=True,
+    )
     in_weight = models.DecimalField(max_digits=12, decimal_places=3, default=0)
     in_quantity = models.IntegerField(default=0)
     out_weight = models.DecimalField(max_digits=12, decimal_places=3, default=0)
@@ -213,4 +219,4 @@ class StockManagement_Model(models.Model):
         verbose_name_plural = "Stock Management"
 
     def __str__(self):
-        return f"{self.item.name} - {self.size.name}"
+        return f"{self.item.name} - {self.size.name if self.size else 'No Size'}"

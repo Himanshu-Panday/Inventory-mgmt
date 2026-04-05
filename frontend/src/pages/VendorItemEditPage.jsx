@@ -33,6 +33,7 @@ const VendorItemEditPage = () => {
   const dispatch = useDispatch();
   const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
 
   const items = useSelector((state) => state.itemMaster.records);
@@ -136,9 +137,25 @@ const VendorItemEditPage = () => {
   };
 
   return (
-    <div className="dashboard-shell">
-      <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
-        <div className="sidebar-header">Modules</div>
+    <div className={`dashboard-shell ${sidebarCollapsed && sidebarOpen ? "sidebar-push" : ""}`}>
+      <aside className={`sidebar ${sidebarOpen ? "open" : ""} ${sidebarCollapsed ? "collapsed" : ""}`}>
+        <div className="sidebar-header">
+        <span>Modules</span>
+        <button
+          type="button"
+          className="sidebar-toggle"
+          onClick={() => {
+          setSidebarCollapsed((prev) => {
+            const next = !prev;
+            setSidebarOpen(!next);
+            return next;
+          });
+        }}
+          aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {sidebarCollapsed ? "X" : "X"}
+        </button>
+      </div>
         <nav className="sidebar-nav">
           {navItems.map((item) => (
             <button
@@ -148,7 +165,6 @@ const VendorItemEditPage = () => {
               onClick={() => {
                 dispatch(setActiveTab(item));
                 navigate("/");
-                setSidebarOpen(false);
               }}
             >
               {item}
@@ -158,7 +174,7 @@ const VendorItemEditPage = () => {
       </aside>
 
       <div
-        className={`sidebar-backdrop ${sidebarOpen ? "show" : ""}`}
+        className={`sidebar-backdrop ${sidebarOpen && !sidebarCollapsed ? "show" : ""}`}
         onClick={() => setSidebarOpen(false)}
       />
 
@@ -166,9 +182,9 @@ const VendorItemEditPage = () => {
         <header className="topbar">
           <button
             type="button"
-            className="hamburger"
+            className={`hamburger ${sidebarCollapsed && !sidebarOpen ? "always" : ""}`}
             aria-label="Toggle sidebar"
-            onClick={() => setSidebarOpen((prev) => !prev)}
+            onClick={() => setSidebarOpen(true)}
           >
             <span />
             <span />

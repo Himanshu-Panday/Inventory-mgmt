@@ -76,6 +76,7 @@ class MasterName(models.TextChoices):
     WAX_RECEIVE = "wax_receive", "Wax-Receive"
     ISSUE_MASTER = "issue_master", "Issue-Master"
     STOCK_MANAGEMENT = "stock_management", "StockManagement"
+    DELETED_RECORDS = "deleted_records", "Deleted Records"
 
 
 class MasterPermission(models.Model):

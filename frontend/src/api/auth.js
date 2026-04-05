@@ -87,6 +87,11 @@ export const listUsersRequest = async () => {
   return data;
 };
 
+export const getUserRequest = async (id) => {
+  const { data } = await authApi.get(`/users/${id}/`);
+  return data;
+};
+
 export const createUserRequest = async (payload) => {
   const { data } = await authApi.post("/users/", payload);
   return data;

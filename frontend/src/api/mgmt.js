@@ -253,6 +253,9 @@ export const listWaxReceiveLines = async (waxReceiveIdOrOptions, options = {}) =
   if (waxReceiveId) {
     params.wax_receive = waxReceiveId;
   }
+  if (typeof options.include_deleted !== "undefined") {
+    params.include_deleted = options.include_deleted ? "1" : "0";
+  }
   if (typeof options.is_active !== "undefined") {
     params.is_active = options.is_active ? "1" : "0";
   }

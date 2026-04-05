@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useDispatch } from "react-redux";
 
 import { useAuth } from "../components/AuthProvider";
@@ -7,7 +7,9 @@ import rudraLogo from "../assets/RUDRA_LOGO.png";
 import { setActiveTab } from "../store/uiSlice";
 import {
   createUserRequest,
+  getUserRequest,
   listMasterOptionsRequest,
+  updateUserRequest,
 } from "../api/auth";
 
 const MASTER_TABS = [
@@ -27,20 +29,31 @@ const defaultForm = {
   is_active: true,
 };
 
-const buildPermissionRows = (masters) =>
-  masters.map((master) => ({
-    master_name: master.master_name,
-    label: master.label,
-    can_read: false,
-    can_create_update: false,
-    can_delete: false,
-  }));
+const buildPermissionRows = (masters, userPermissions = []) => {
+  const permissionMap = new Map(
+    userPermissions.map((permission) => [permission.master_name, permission]),
+  );
+
+  return masters.map((master) => {
+    const permission = permissionMap.get(master.master_name);
+    return {
+      master_name: master.master_name,
+      label: master.label,
+      can_read: permission?.can_read || false,
+      can_create_update: permission?.can_create_update || false,
+      can_delete: permission?.can_delete || false,
+    };
+  });
+};
 
 const UserCreatePage = () => {
+  const { id } = useParams();
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { user, logout } = useAuth();
+  const isEditing = Boolean(id);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
 
   const [masters, setMasters] = useState([]);
@@ -71,11 +84,25 @@ const UserCreatePage = () => {
   useEffect(() => {
     let isMounted = true;
     setLoading(true);
-    listMasterOptionsRequest()
-      .then((mastersData) => {
+    Promise.all([
+      listMasterOptionsRequest(),
+      isEditing ? getUserRequest(id) : Promise.resolve(null),
+    ])
+      .then(([mastersData, userData]) => {
         if (!isMounted) return;
         setMasters(mastersData);
-        setPermissionRows(buildPermissionRows(mastersData));
+        if (userData) {
+          setForm({
+            email: userData.email || "",
+            password: "",
+            first_name: userData.first_name || "",
+            last_name: userData.last_name || "",
+            is_active: userData.is_active,
+          });
+          setPermissionRows(buildPermissionRows(mastersData, userData.master_permissions || []));
+        } else {
+          setPermissionRows(buildPermissionRows(mastersData));
+        }
       })
       .catch(() => {
         if (!isMounted) return;
@@ -89,7 +116,7 @@ const UserCreatePage = () => {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [id, isEditing]);
 
   const handleLogout = () => {
     logout();
@@ -118,11 +145,6 @@ const UserCreatePage = () => {
     event.preventDefault();
     setFormError("");
 
-    if (!form.email || !form.password) {
-      setFormError("Email and password are required.");
-      return;
-    }
-
     setSaving(true);
     try {
       const permissionPayload = permissionRows.map((permission) => ({
@@ -132,15 +154,32 @@ const UserCreatePage = () => {
         can_delete: permission.can_delete,
       }));
 
-      await createUserRequest({
-        email: form.email,
-        password: form.password,
-        first_name: form.first_name,
-        last_name: form.last_name,
-        is_active: form.is_active,
-        master_permissions: permissionPayload,
-        role: "user",
-      });
+      if (isEditing) {
+        await updateUserRequest({
+          id,
+          payload: {
+            first_name: form.first_name,
+            last_name: form.last_name,
+            is_active: form.is_active,
+            master_permissions: permissionPayload,
+          },
+        });
+      } else {
+        if (!form.email || !form.password) {
+          setFormError("Email and password are required.");
+          setSaving(false);
+          return;
+        }
+        await createUserRequest({
+          email: form.email,
+          password: form.password,
+          first_name: form.first_name,
+          last_name: form.last_name,
+          is_active: form.is_active,
+          master_permissions: permissionPayload,
+          role: "user",
+        });
+      }
 
       navigate("/", { replace: true });
     } catch (requestError) {
@@ -160,9 +199,25 @@ const UserCreatePage = () => {
   };
 
   return (
-    <div className="dashboard-shell">
-      <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
-        <div className="sidebar-header">Modules</div>
+    <div className={`dashboard-shell ${sidebarCollapsed && sidebarOpen ? "sidebar-push" : ""}`}>
+      <aside className={`sidebar ${sidebarOpen ? "open" : ""} ${sidebarCollapsed ? "collapsed" : ""}`}>
+        <div className="sidebar-header">
+        <span>Modules</span>
+        <button
+          type="button"
+          className="sidebar-toggle"
+          onClick={() => {
+          setSidebarCollapsed((prev) => {
+            const next = !prev;
+            setSidebarOpen(!next);
+            return next;
+          });
+        }}
+          aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {sidebarCollapsed ? "X" : "X"}
+        </button>
+      </div>
         <nav className="sidebar-nav">
           {navItems.map((item) => (
             <button
@@ -172,7 +227,6 @@ const UserCreatePage = () => {
               onClick={() => {
                 dispatch(setActiveTab(item));
                 navigate("/");
-                setSidebarOpen(false);
               }}
             >
               {item}
@@ -182,7 +236,7 @@ const UserCreatePage = () => {
       </aside>
 
       <div
-        className={`sidebar-backdrop ${sidebarOpen ? "show" : ""}`}
+        className={`sidebar-backdrop ${sidebarOpen && !sidebarCollapsed ? "show" : ""}`}
         onClick={() => setSidebarOpen(false)}
       />
 
@@ -190,9 +244,9 @@ const UserCreatePage = () => {
         <header className="topbar">
           <button
             type="button"
-            className="hamburger"
+            className={`hamburger ${sidebarCollapsed && !sidebarOpen ? "always" : ""}`}
             aria-label="Toggle sidebar"
-            onClick={() => setSidebarOpen((prev) => !prev)}
+            onClick={() => setSidebarOpen(true)}
           >
             <span />
             <span />
@@ -232,8 +286,12 @@ const UserCreatePage = () => {
         <div className="content-card">
           <div className="section-head">
             <div>
-              <h2>Create User</h2>
-              <p>Create a new normal user and assign master permissions.</p>
+              <h2>{isEditing ? "Edit User" : "Create User"}</h2>
+              <p>
+                {isEditing
+                  ? "Update user details and master permissions."
+                  : "Create a new normal user and assign master permissions."}
+              </p>
             </div>
             <div className="action-group">
               <button type="button" className="small-btn" onClick={() => navigate(-1)}>
@@ -252,17 +310,22 @@ const UserCreatePage = () => {
                 type="email"
                 value={form.email}
                 onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
-                required
+                required={!isEditing}
+                disabled={isEditing}
               />
 
-              <label htmlFor="user-password">Password</label>
-              <input
-                id="user-password"
-                type="password"
-                value={form.password}
-                onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
-                required
-              />
+              {!isEditing && (
+                <>
+                  <label htmlFor="user-password">Password</label>
+                  <input
+                    id="user-password"
+                    type="password"
+                    value={form.password}
+                    onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
+                    required
+                  />
+                </>
+              )}
 
               <label htmlFor="user-first">First Name</label>
               <input
@@ -294,40 +357,66 @@ const UserCreatePage = () => {
                 {permissionRows.map((permission) => (
                   <div key={permission.master_name} className="permission-row">
                     <span>{permission.label}</span>
-                    <button
-                      type="button"
-                      className={`perm-icon ${permission.can_read ? "active" : ""}`}
-                      title="Read"
-                      onClick={() =>
-                        setPermissionValue(permission.master_name, "can_read", !permission.can_read)
-                      }
-                    >
-                      R
-                    </button>
-                    <button
-                      type="button"
-                      className={`perm-icon ${permission.can_create_update ? "active" : ""}`}
-                      title="Create/Update"
-                      onClick={() =>
-                        setPermissionValue(
-                          permission.master_name,
-                          "can_create_update",
-                          !permission.can_create_update,
-                        )
-                      }
-                    >
-                      CU
-                    </button>
-                    <button
-                      type="button"
-                      className={`perm-icon ${permission.can_delete ? "active" : ""}`}
-                      title="Delete"
-                      onClick={() =>
-                        setPermissionValue(permission.master_name, "can_delete", !permission.can_delete)
-                      }
-                    >
-                      D
-                    </button>
+                    {permission.master_name === "deleted_records" ? (
+                      <button
+                        type="button"
+                        className={`perm-icon perm-access ${permission.can_read ? "active" : ""}`}
+                        onClick={() =>
+                          setPermissionValue(
+                            permission.master_name,
+                            "can_read",
+                            !permission.can_read,
+                          )
+                        }
+                      >
+                        {permission.can_read ? "Access Granted" : "Access Denied"}
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          className={`perm-icon ${permission.can_read ? "active" : ""}`}
+                          title="Read"
+                          onClick={() =>
+                            setPermissionValue(
+                              permission.master_name,
+                              "can_read",
+                              !permission.can_read,
+                            )
+                          }
+                        >
+                          R
+                        </button>
+                        <button
+                          type="button"
+                          className={`perm-icon ${permission.can_create_update ? "active" : ""}`}
+                          title="Create/Update"
+                          onClick={() =>
+                            setPermissionValue(
+                              permission.master_name,
+                              "can_create_update",
+                              !permission.can_create_update,
+                            )
+                          }
+                        >
+                          CU
+                        </button>
+                        <button
+                          type="button"
+                          className={`perm-icon ${permission.can_delete ? "active" : ""}`}
+                          title="Delete"
+                          onClick={() =>
+                            setPermissionValue(
+                              permission.master_name,
+                              "can_delete",
+                              !permission.can_delete,
+                            )
+                          }
+                        >
+                          D
+                        </button>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
@@ -336,7 +425,7 @@ const UserCreatePage = () => {
 
               <div className="modal-actions">
                 <button type="submit" disabled={saving}>
-                  {saving ? "Saving..." : "Create"}
+                  {saving ? "Saving..." : isEditing ? "Update" : "Create"}
                 </button>
               </div>
             </form>

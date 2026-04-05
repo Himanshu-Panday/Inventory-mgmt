@@ -255,7 +255,7 @@ const UserManagementPanel = () => {
                             className="small-btn"
                             data-action="edit"
                             data-icon="✎"
-                            onClick={() => openEditModal(user)}
+                            onClick={() => navigate(`/users/${user.id}/edit`)}
                           >
                             Edit
                           </button>

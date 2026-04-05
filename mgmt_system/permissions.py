@@ -19,8 +19,15 @@ class MasterAccessPermission(BasePermission):
         user = request.user
         if not user or not user.is_authenticated:
             return False
-        if user.role == "admin" or user.is_staff or user.is_superuser:
+        role = (getattr(user, "role", "") or "").lower()
+        if role == "admin" or user.is_staff or user.is_superuser:
             return True
+
+        is_inactive_request = request.query_params.get("is_active") in ("0", "false", "False")
+        if request.method in SAFE_METHODS and is_inactive_request:
+            deleted_perm = user.master_permissions.filter(master_name="deleted_records").first()
+            if deleted_perm and deleted_perm.can_read:
+                return True
 
         master_name = MASTER_BY_BASENAME.get(getattr(view, "basename", ""))
         if not master_name:

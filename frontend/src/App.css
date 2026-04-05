@@ -250,20 +250,60 @@ button:disabled {
   background: #e9eff7;
 }
 
+.dashboard-shell.sidebar-push .dashboard-main {
+  margin-left: 260px;
+  transition: margin-left 0.25s ease;
+}
+
 .sidebar {
   width: 260px;
-  background: #0f2f55;
+  background: linear-gradient(180deg, #0f2f55 0%, #123863 55%, #0b2747 100%);
   color: #ffffff;
   padding: 1rem;
-  transition: transform 0.25s ease;
+  transition: transform 0.25s ease, width 0.25s ease, padding 0.25s ease;
+}
+
+.sidebar.collapsed {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 0;
+  padding: 0;
+  overflow: hidden;
+  transform: translateX(-100%);
+  z-index: 30;
+}
+
+.sidebar.collapsed.open {
+  width: 260px;
+  padding: 1rem;
+  transform: translateX(0);
 }
 
 .sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   font-size: 1.1rem;
   font-weight: 700;
   margin-bottom: 0.9rem;
 }
 
+.sidebar-toggle {
+  margin: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.sidebar-toggle:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
 .sidebar-nav {
   display: grid;
   gap: 0.5rem;
@@ -336,6 +376,10 @@ button:disabled {
   width: 100%;
   height: 2px;
   background: #ffffff;
+}
+
+.hamburger.always {
+  display: flex;
 }
 
 .profile-wrap {
@@ -743,6 +787,15 @@ button:disabled {
   color: #1f4570;
   font-size: 0.8rem;
   font-weight: 700;
+}
+
+.perm-icon.perm-access {
+  width: auto;
+  height: auto;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .perm-icon.active {

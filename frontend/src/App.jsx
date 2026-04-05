@@ -152,6 +152,14 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/users/:id/edit"
+            element={
+              <ProtectedRoute>
+                <UserCreatePage />
+              </ProtectedRoute>
+            }
+          />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>

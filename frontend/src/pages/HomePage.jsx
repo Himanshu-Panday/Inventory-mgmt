@@ -29,6 +29,7 @@ const HomePage = () => {
   const dispatch = useDispatch();
   const activeTab = useSelector((state) => state.ui.activeTab);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
 
   const permissionMap = useMemo(() => {
@@ -39,13 +40,22 @@ const HomePage = () => {
     return map;
   }, [user]);
 
+  const canViewDeletedRecords =
+    user?.role === "admin" || Boolean(permissionMap.get("deleted_records")?.can_read);
+
   const navItems = useMemo(() => {
     if (!user) return [];
     if (user.role === "admin") {
       return [...MASTER_TABS.map((item) => item.label), "User Management", "Deleted Records"];
     }
-    return MASTER_TABS.filter((tab) => permissionMap.get(tab.key)?.can_read).map((tab) => tab.label);
-  }, [permissionMap, user]);
+    const items = MASTER_TABS.filter((tab) => permissionMap.get(tab.key)?.can_read).map(
+      (tab) => tab.label,
+    );
+    if (canViewDeletedRecords) {
+      items.push("Deleted Records");
+    }
+    return items;
+  }, [permissionMap, user, canViewDeletedRecords]);
 
   useEffect(() => {
     if (!navItems.includes(activeTab)) {
@@ -73,7 +83,7 @@ const HomePage = () => {
       );
     }
 
-    if (activeTab === "Deleted Records" && user?.role === "admin") {
+    if (activeTab === "Deleted Records" && canViewDeletedRecords) {
       return (
         <Suspense fallback={<div className="content-card"><div className="inline-loader" /></div>}>
           <DeletedRecordsPanel />
@@ -143,9 +153,25 @@ const HomePage = () => {
   };
 
   return (
-    <div className="dashboard-shell">
-      <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
-        <div className="sidebar-header">Modules</div>
+    <div className={`dashboard-shell ${sidebarCollapsed && sidebarOpen ? "sidebar-push" : ""}`}>
+      <aside className={`sidebar ${sidebarOpen ? "open" : ""} ${sidebarCollapsed ? "collapsed" : ""}`}>
+        <div className="sidebar-header">
+        <span>Modules</span>
+        <button
+          type="button"
+          className="sidebar-toggle"
+          onClick={() => {
+          setSidebarCollapsed((prev) => {
+            const next = !prev;
+            setSidebarOpen(!next);
+            return next;
+          });
+        }}
+          aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {sidebarCollapsed ? "X" : "X"}
+        </button>
+      </div>
         <nav className="sidebar-nav">
           {navItems.map((item) => (
             <button
@@ -154,7 +180,6 @@ const HomePage = () => {
               className={`nav-item ${activeTab === item ? "active" : ""}`}
               onClick={() => {
                 dispatch(setActiveTab(item));
-                setSidebarOpen(false);
               }}
             >
               {item}
@@ -164,7 +189,7 @@ const HomePage = () => {
       </aside>
 
       <div
-        className={`sidebar-backdrop ${sidebarOpen ? "show" : ""}`}
+        className={`sidebar-backdrop ${sidebarOpen && !sidebarCollapsed ? "show" : ""}`}
         onClick={() => setSidebarOpen(false)}
       />
 
@@ -172,9 +197,9 @@ const HomePage = () => {
         <header className="topbar">
           <button
             type="button"
-            className="hamburger"
+            className={`hamburger ${sidebarCollapsed && !sidebarOpen ? "always" : ""}`}
             aria-label="Toggle sidebar"
-            onClick={() => setSidebarOpen((prev) => !prev)}
+            onClick={() => setSidebarOpen(true)}
           >
             <span />
             <span />

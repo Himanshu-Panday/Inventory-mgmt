@@ -53,6 +53,10 @@ const StockManagementPanel = () => {
   }, []);
 
   const openIssueModal = async (record) => {
+    if (!record.size) {
+      setFormError("Cannot issue stock without size.");
+      return;
+    }
     setSelectedRecord(record);
     setForm(defaultForm);
     setFormError("");
@@ -81,7 +85,7 @@ const StockManagementPanel = () => {
   };
 
   const openViewModal = async (record) => {
-    setViewTitle(`${record.item_name} - ${record.size_name}`);
+    setViewTitle(`${record.item_name} - ${record.size_name || "No Size"}`);
     setViewLoading(true);
     setViewOpen(true);
     try {
@@ -150,7 +154,7 @@ const StockManagementPanel = () => {
     ];
     const rows = records.map((record) => [
       record.item_name,
-      record.size_name,
+      record.size_name || "No Size",
       record.in_weight,
       record.in_quantity,
       record.out_weight,
@@ -223,7 +227,7 @@ const StockManagementPanel = () => {
                 visibleRecords.map((record) => (
                   <tr key={record.id}>
                     <td>{record.item_name}</td>
-                    <td>{record.size_name}</td>
+                    <td>{record.size_name || "No Size"}</td>
                     <td>{record.in_weight}</td>
                     <td>{record.in_quantity}</td>
                     <td>{record.out_weight}</td>
@@ -238,6 +242,7 @@ const StockManagementPanel = () => {
                           data-action="issue"
                           data-icon="⇩"
                           onClick={() => openIssueModal(record)}
+                          disabled={!record.size}
                         >
                           Issue
                         </button>

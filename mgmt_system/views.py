@@ -34,6 +34,18 @@ from .serializers import (
 )
 
 
+def _is_admin_user(user):
+    role = (getattr(user, "role", "") or "").lower()
+    return role == "admin" or user.is_staff or user.is_superuser
+
+
+def _can_view_inactive(user):
+    if _is_admin_user(user):
+        return True
+    perm = user.master_permissions.filter(master_name="deleted_records").first()
+    return bool(perm and perm.can_read)
+
+
 class SizeModelViewSet(viewsets.ModelViewSet):
     queryset = Size_Model.objects.all()
     serializer_class = SizeModelSerializer
@@ -41,7 +53,7 @@ class SizeModelViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        if self.request.user.role == "admin" and self.action in [
+        if _is_admin_user(self.request.user) and self.action in [
             "retrieve",
             "update",
             "partial_update",
@@ -49,7 +61,7 @@ class SizeModelViewSet(viewsets.ModelViewSet):
         ]:
             return queryset
         is_active = self.request.query_params.get("is_active")
-        if is_active in ("0", "false", "False") and self.request.user.role == "admin":
+        if is_active in ("0", "false", "False") and _can_view_inactive(self.request.user):
             return queryset.filter(is_active=False)
         return queryset.filter(is_active=True)
 
@@ -99,7 +111,7 @@ class ItemModelViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        if self.request.user.role == "admin" and self.action in [
+        if _is_admin_user(self.request.user) and self.action in [
             "retrieve",
             "update",
             "partial_update",
@@ -107,7 +119,7 @@ class ItemModelViewSet(viewsets.ModelViewSet):
         ]:
             return queryset
         is_active = self.request.query_params.get("is_active")
-        if is_active in ("0", "false", "False") and self.request.user.role == "admin":
+        if is_active in ("0", "false", "False") and _can_view_inactive(self.request.user):
             return queryset.filter(is_active=False)
         return queryset.filter(is_active=True)
 
@@ -157,7 +169,7 @@ class VendorModelViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        if self.request.user.role == "admin" and self.action in [
+        if _is_admin_user(self.request.user) and self.action in [
             "retrieve",
             "update",
             "partial_update",
@@ -168,7 +180,7 @@ class VendorModelViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(vendor_id=vendor_id)
             return queryset
         is_active = self.request.query_params.get("is_active")
-        if is_active in ("0", "false", "False") and self.request.user.role == "admin":
+        if is_active in ("0", "false", "False") and _can_view_inactive(self.request.user):
             queryset = queryset.filter(is_active=False)
         else:
             queryset = queryset.filter(is_active=True)
@@ -223,7 +235,7 @@ class VendorListViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        if self.request.user.role == "admin" and self.action in [
+        if _is_admin_user(self.request.user) and self.action in [
             "retrieve",
             "update",
             "partial_update",
@@ -231,7 +243,7 @@ class VendorListViewSet(viewsets.ModelViewSet):
         ]:
             return queryset
         is_active = self.request.query_params.get("is_active")
-        if is_active in ("0", "false", "False") and self.request.user.role == "admin":
+        if is_active in ("0", "false", "False") and _can_view_inactive(self.request.user):
             return queryset.filter(is_active=False)
         return queryset.filter(is_active=True)
 
@@ -281,7 +293,7 @@ class WaxReceiveViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        if self.request.user.role == "admin" and self.action in [
+        if _is_admin_user(self.request.user) and self.action in [
             "retrieve",
             "update",
             "partial_update",
@@ -289,7 +301,7 @@ class WaxReceiveViewSet(viewsets.ModelViewSet):
         ]:
             return queryset
         is_active = self.request.query_params.get("is_active")
-        if is_active in ("0", "false", "False") and self.request.user.role == "admin":
+        if is_active in ("0", "false", "False") and _can_view_inactive(self.request.user):
             return queryset.filter(is_active=False)
         return queryset.filter(is_active=True)
 
@@ -384,15 +396,20 @@ class WaxReceiveLineViewSet(viewsets.ModelViewSet):
         wax_receive_id = self.request.query_params.get("wax_receive")
         if wax_receive_id:
             queryset = queryset.filter(wax_receive_id=wax_receive_id)
-        if self.request.user.role == "admin" and self.action in [
+        if _is_admin_user(self.request.user) and self.action in [
             "retrieve",
             "update",
             "partial_update",
             "destroy",
         ]:
             return queryset
+        include_deleted = self.request.query_params.get("include_deleted")
+        if include_deleted in ("1", "true", "True"):
+            if _can_view_inactive(self.request.user):
+                return queryset.filter(is_active=False)
+            return queryset.none()
         is_active = self.request.query_params.get("is_active")
-        if is_active in ("0", "false", "False") and self.request.user.role == "admin":
+        if is_active in ("0", "false", "False") and _can_view_inactive(self.request.user):
             return queryset.filter(is_active=False)
         return queryset.filter(is_active=True, wax_receive__is_active=True)
 
@@ -456,7 +473,7 @@ class IssueMasterViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        if self.request.user.role == "admin" and self.action in [
+        if _is_admin_user(self.request.user) and self.action in [
             "retrieve",
             "update",
             "partial_update",
@@ -464,7 +481,7 @@ class IssueMasterViewSet(viewsets.ModelViewSet):
         ]:
             return queryset
         is_active = self.request.query_params.get("is_active")
-        if is_active in ("0", "false", "False") and self.request.user.role == "admin":
+        if is_active in ("0", "false", "False") and _can_view_inactive(self.request.user):
             return queryset.filter(is_active=False)
         return queryset.filter(is_active=True)
 

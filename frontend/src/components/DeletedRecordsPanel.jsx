@@ -69,7 +69,7 @@ const DeletedRecordsPanel = () => {
       },
       wax_receive_line: {
         label: "Wax Receive Line",
-        fetch: () => listWaxReceiveLines({ is_active: false }),
+        fetch: () => listWaxReceiveLines({ is_active: false, include_deleted: true }),
         recover: (record) =>
           updateWaxReceiveLine({ id: record.id, payload: { is_active: true } }),
         recordLabel: (record) => `${record.item_name || "-"} - ${record.size_name || "-"}`,
