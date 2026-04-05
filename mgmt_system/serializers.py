@@ -115,52 +115,52 @@ class AuditLogSerializer(serializers.Serializer):
     actor_email = serializers.CharField(allow_null=True)
 
 
-class WaxReceiveLineSerializer(serializers.ModelSerializer):
-    item_name = serializers.CharField(source="item.name", read_only=True)
-    size_name = serializers.SerializerMethodField()
-    size = serializers.PrimaryKeyRelatedField(
-        queryset=Size_Model.objects.all(),
-        required=False,
-        allow_null=True,
-    )
-    image = serializers.ImageField(required=False, allow_null=True)
-    is_active = serializers.BooleanField(required=False, default=True)
+# class WaxReceiveLineSerializer(serializers.ModelSerializer):
+#     item_name = serializers.CharField(source="item.name", read_only=True)
+#     size_name = serializers.SerializerMethodField()
+#     size = serializers.PrimaryKeyRelatedField(
+#         queryset=Size_Model.objects.all(),
+#         required=False,
+#         allow_null=True,
+#     )
+#     image = serializers.ImageField(required=False, allow_null=True)
+#     is_active = serializers.BooleanField(required=False, default=True)
 
-    class Meta:
-        model = WaxReceiveLine
-        fields = [
-            "id",
-            "wax_receive",
-            "item",
-            "item_name",
-            "size",
-            "size_name",
-            "in_weight",
-            "in_quantity",
-            "rate",
-            "amount",
-            "image",
-            "is_active",
-        ]
-        read_only_fields = ["id", "item_name", "size_name", "rate", "amount"]
+#     class Meta:
+#         model = WaxReceiveLine
+#         fields = [
+#             "id",
+#             "wax_receive",
+#             "item",
+#             "item_name",
+#             "size",
+#             "size_name",
+#             "in_weight",
+#             "in_quantity",
+#             "rate",
+#             "amount",
+#             "image",
+#             "is_active",
+#         ]
+#         read_only_fields = ["id", "item_name", "size_name", "rate", "amount"]
 
-    def get_size_name(self, instance):
-        return instance.size.name if instance.size else None
+#     def get_size_name(self, instance):
+#         return instance.size.name if instance.size else None
 
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        request = self.context.get("request")
-        if instance.image:
-            if request:
-                data["image"] = request.build_absolute_uri(instance.image.url)
-            else:
-                data["image"] = instance.image.url
-        else:
-            data["image"] = None
-        return data
+#     def to_representation(self, instance):
+#         data = super().to_representation(instance)
+#         request = self.context.get("request")
+#         if instance.image:
+#             if request:
+#                 data["image"] = request.build_absolute_uri(instance.image.url)
+#             else:
+#                 data["image"] = instance.image.url
+#         else:
+#             data["image"] = None
+#         return data
     
 
-# class WaxReceiveSerializer(serializers.ModelSerializer):
+class WaxReceiveSerializer(serializers.ModelSerializer):
     vendor_name = serializers.CharField(source="vendor.vendor_name", read_only=True)
     created_by_email = serializers.EmailField(source="created_by.email", read_only=True)
 
@@ -188,6 +188,7 @@ class WaxReceiveLineSerializer(serializers.ModelSerializer):
             "created_by",
             "created_by_email",
         ]
+
 class WaxReceiveLineSerializer(serializers.ModelSerializer):
     item_name = serializers.CharField(source="item.name", read_only=True)
     size_name = serializers.SerializerMethodField()
