@@ -23,6 +23,20 @@ const MASTER_TABS = [
   { key: "stock_management", label: "StockManagement" },
 ];
 
+const NAV_ICON_MAP = {
+  "Vendor-Master": "vendor",
+  "Item-Master": "item",
+  "Size-Master": "size",
+  "Wax-Receive": "wax",
+  "Issue-Master": "issue",
+  "StockManagement": "stock",
+  "User Management": "user",
+  "Deleted Records": "trash",
+};
+
+const getNavIcon = (label) => NAV_ICON_MAP[label] || "default";
+
+
 const formatDateTime = (value) => {
   if (!value) return "-";
   return new Date(value).toLocaleString();
@@ -33,8 +47,7 @@ const VendorDetailPage = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { user, logout } = useAuth();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
   const [profileOpen, setProfileOpen] = useState(false);
   const [vendor, setVendor] = useState(null);
   const [vendorItems, setVendorItems] = useState([]);
@@ -48,6 +61,7 @@ const VendorDetailPage = () => {
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filtersClosing, setFiltersClosing] = useState(false);
   const [filterItemName, setFilterItemName] = useState("");
   const [filterCreatedBy, setFilterCreatedBy] = useState("");
   const { visibleCount, sentinelRef } = useInfiniteScroll(vendorItems.length);
@@ -77,11 +91,15 @@ const VendorDetailPage = () => {
   const navItems = useMemo(() => {
     if (!user) return [];
     if (user.role === "admin") {
-      return [...MASTER_TABS.map((item) => item.label), "User Management"];
+      return [...MASTER_TABS.map((item) => item.label), "User Management", "Deleted Records"];
     }
-    return MASTER_TABS.filter((tab) => permissionMap.get(tab.key)?.can_read).map(
+    const items = MASTER_TABS.filter((tab) => permissionMap.get(tab.key)?.can_read).map(
       (tab) => tab.label,
     );
+    if (permissionMap.get("deleted_records")?.can_read) {
+      items.push("Deleted Records");
+    }
+    return items;
   }, [permissionMap, user]);
 
   const permission = useMemo(() => {
@@ -100,6 +118,20 @@ const VendorDetailPage = () => {
   const handleLogout = () => {
     logout();
     navigate("/login", { replace: true });
+  };
+
+  const openFilters = () => {
+    setFiltersClosing(false);
+    setFiltersOpen(true);
+  };
+
+  const closeFilters = () => {
+    if (filtersClosing) return;
+    setFiltersClosing(true);
+    window.setTimeout(() => {
+      setFiltersOpen(false);
+      setFiltersClosing(false);
+    }, 200);
   };
 
   useEffect(() => {
@@ -199,54 +231,42 @@ const VendorDetailPage = () => {
       </button>
     </div>
   ) : (
-    <div className="content-card">
-        <div className="section-head">
+    <div className="content-card vendor-panel">
+        <div className="section-head vendor-head">
           <div>
             <h2>{vendor.vendor_name}</h2>
             <p>Manage vendor item rates.</p>
           </div>
-          <div className="action-group">
+          <div className="action-group vendor-head-actions">
             <button
               type="button"
-              className="small-btn info"
-              onClick={() => setFiltersOpen(true)}
+              className="action-btn filter"
+              onClick={openFilters}
             >
               Filters
             </button>
             {selectedIds.length > 0 && (
               <button
                 type="button"
-                className="small-btn danger"
+                className="add-btn danger"
                 onClick={() => setBulkDeleteOpen(true)}
                 disabled={!canDelete}
               >
                 Delete ({selectedIds.length})
               </button>
             )}
-            <button type="button" className="small-btn" onClick={() => navigate(-1)}>
-              Back
+            <button
+              type="button"
+              className="action-btn add"
+              onClick={() => navigate(`/vendors/${id}/items/new`)}
+              disabled={!canCreateUpdate}
+            >
+              Add
             </button>
-          <button
-            type="button"
-            className="small-btn info"
-            data-action="history"
-            data-icon="⏱"
-            onClick={() => openHistoryModal(vendor, "vendor")}
-          >
-            History
-          </button>
-          <button
-            type="button"
-            className="add-btn"
-            onClick={() => navigate(`/vendors/${id}/items/new`)}
-            disabled={!canCreateUpdate}
-          >
-            Add
-          </button>
-        </div>
+          </div>
       </div>
 
-      <div className="table-wrap">
+      <div className="table-wrap vendor-table">
         <table className="records-table">
                 <thead>
                   <tr>
@@ -286,7 +306,7 @@ const VendorDetailPage = () => {
                         <td>{formatDateTime(record.date_time)}</td>
                         <td>{record.created_by_email || "-"}</td>
                         <td>
-                    <div className="action-group">
+                    <div className="action-group vendor-actions">
                       <button
                         type="button"
                         className="small-btn"
@@ -368,8 +388,11 @@ const VendorDetailPage = () => {
       )}
 
       {filtersOpen && (
-        <div className="modal-overlay" onClick={() => setFiltersOpen(false)}>
-          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+        <div className="modal-overlay filter-overlay" onClick={closeFilters}>
+          <div
+            className={`modal-card filter-card ${filtersClosing ? "closing" : ""}`}
+            onClick={(event) => event.stopPropagation()}
+          >
             <h3>Filters</h3>
             <div className="filter-row">
               <div className="filter-field">
@@ -404,7 +427,7 @@ const VendorDetailPage = () => {
               </div>
             </div>
             <div className="modal-actions">
-              <button type="button" className="secondary-btn" onClick={() => setFiltersOpen(false)}>
+              <button type="button" className="secondary-btn" onClick={closeFilters}>
                 Close
               </button>
             </div>
@@ -438,7 +461,7 @@ const VendorDetailPage = () => {
           setBulkDeleteOpen(false);
           setDeleteError("");
         }}>
-          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+          <div className="modal-card delete-modal" onClick={(event) => event.stopPropagation()}>
             <h3>Confirm Delete</h3>
             <p>Are you sure you want to delete {selectedIds.length} records?</p>
             {deleteError && <p className="error">{deleteError}</p>}
@@ -457,25 +480,11 @@ const VendorDetailPage = () => {
   );
 
   return (
-    <div className={`dashboard-shell ${sidebarCollapsed && sidebarOpen ? "sidebar-push" : ""}`}>
-      <aside className={`sidebar ${sidebarOpen ? "open" : ""} ${sidebarCollapsed ? "collapsed" : ""}`}>
+    <div className="dashboard-shell">
+      <aside className="sidebar open">
         <div className="sidebar-header">
-        <span>Modules</span>
-        <button
-          type="button"
-          className="sidebar-toggle"
-          onClick={() => {
-          setSidebarCollapsed((prev) => {
-            const next = !prev;
-            setSidebarOpen(!next);
-            return next;
-          });
-        }}
-          aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {sidebarCollapsed ? "X" : "X"}
-        </button>
-      </div>
+          <span>Modules</span>
+        </div>
         <nav className="sidebar-nav">
           {navItems.map((item) => (
             <button
@@ -487,30 +496,15 @@ const VendorDetailPage = () => {
                 navigate("/");
               }}
             >
-              {item}
+              <span className="nav-icon" data-icon={getNavIcon(item)} aria-hidden="true" />
+              <span>{item}</span>
             </button>
           ))}
         </nav>
       </aside>
 
-      <div
-        className={`sidebar-backdrop ${sidebarOpen && !sidebarCollapsed ? "show" : ""}`}
-        onClick={() => setSidebarOpen(false)}
-      />
-
-      <section className="dashboard-main">
+      <section className="dashboard-main" onClick={() => setProfileOpen(false)}>
         <header className="topbar">
-          <button
-            type="button"
-            className={`hamburger ${sidebarCollapsed && !sidebarOpen ? "always" : ""}`}
-            aria-label="Toggle sidebar"
-            onClick={() => setSidebarOpen(true)}
-          >
-            <span />
-            <span />
-            <span />
-          </button>
-
           <div className="topbar-logo">
             <img src={rudraLogo} alt="Rudra Jewels" />
           </div>
@@ -519,24 +513,48 @@ const VendorDetailPage = () => {
             <button
               type="button"
               className="profile-btn"
-              onClick={() => setProfileOpen((prev) => !prev)}
+              onClick={(event) => {
+              event.stopPropagation();
+              setProfileOpen((prev) => !prev);
+            }}
               aria-label="Profile"
             />
 
             {profileOpen && (
-              <div className="profile-card">
-                <h2>
-                  {`${user?.first_name || ""} ${user?.last_name || ""}`.trim() ||
-                    user?.email ||
-                    "Profile"}
-                </h2>
-                <p>Login successful. Welcome to inventory management.</p>
-                <div className="meta">
-                  <span>Email: {user?.email}</span>
-                  <span>Role: {user?.role}</span>
+              <div className="profile-card" onClick={(event) => event.stopPropagation()}>
+              <div className="profile-header">
+                <div className="profile-avatar">
+                  {`${user?.first_name || ""} ${user?.last_name || ""}`.trim().slice(0, 1).toUpperCase() ||
+                    user?.email?.slice(0, 1).toUpperCase() ||
+                    "U"}
                 </div>
-                <button onClick={handleLogout}>Logout</button>
+                <div className="profile-title">
+                  <h3>{user?.email || "Profile"}</h3>
+                  <span>Login successful</span>
+                </div>
               </div>
+              <div className="profile-body">
+                <div className="profile-row">
+                  <span className="profile-icon email" aria-hidden="true" />
+                  <div>
+                    <strong>Email</strong>
+                    <div>{user?.email || "-"}</div>
+                  </div>
+                </div>
+                <div className="profile-row">
+                  <span className="profile-icon role" aria-hidden="true" />
+                  <div>
+                    <strong>Role</strong>
+                    <div>{user?.role || "-"}</div>
+                  </div>
+                </div>
+              </div>
+              <div className="profile-footer">
+                <button className="profile-logout" onClick={handleLogout}>
+                  Logout
+                </button>
+              </div>
+            </div>
             )}
           </div>
         </header>

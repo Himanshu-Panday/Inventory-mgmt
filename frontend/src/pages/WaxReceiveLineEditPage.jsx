@@ -22,6 +22,20 @@ const MASTER_TABS = [
   { key: "stock_management", label: "StockManagement" },
 ];
 
+const NAV_ICON_MAP = {
+  "Vendor-Master": "vendor",
+  "Item-Master": "item",
+  "Size-Master": "size",
+  "Wax-Receive": "wax",
+  "Issue-Master": "issue",
+  "StockManagement": "stock",
+  "User Management": "user",
+  "Deleted Records": "trash",
+};
+
+const getNavIcon = (label) => NAV_ICON_MAP[label] || "default";
+
+
 const formatDateTime = (value) => {
   if (!value) return "-";
   return new Date(value).toLocaleString();
@@ -32,8 +46,7 @@ const WaxReceiveLineEditPage = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { user, logout } = useAuth();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
   const [profileOpen, setProfileOpen] = useState(false);
 
   const sizes = useSelector((state) => state.sizeMaster.records);
@@ -79,7 +92,7 @@ const WaxReceiveLineEditPage = () => {
         setLine(lineRecord);
         setForm({
           item: String(lineRecord.item),
-          size: lineRecord.size ? String(lineRecord.size) : "",
+          size: lineRecord.size ? String(lineRecord.size) : "__none__",
           in_weight: String(lineRecord.in_weight),
           in_quantity: String(lineRecord.in_quantity),
         });
@@ -148,7 +161,9 @@ const WaxReceiveLineEditPage = () => {
       const payload = new FormData();
       payload.append("wax_receive", String(record.id));
       payload.append("item", String(form.item));
-      if (form.size) {
+      if (form.size === "__none__") {
+        payload.append("size", "");
+      } else if (form.size) {
         payload.append("size", String(form.size));
       }
       payload.append("in_weight", String(form.in_weight));
@@ -168,25 +183,11 @@ const WaxReceiveLineEditPage = () => {
   };
 
   return (
-    <div className={`dashboard-shell ${sidebarCollapsed && sidebarOpen ? "sidebar-push" : ""}`}>
-      <aside className={`sidebar ${sidebarOpen ? "open" : ""} ${sidebarCollapsed ? "collapsed" : ""}`}>
+    <div className="dashboard-shell">
+      <aside className="sidebar open">
         <div className="sidebar-header">
-        <span>Modules</span>
-        <button
-          type="button"
-          className="sidebar-toggle"
-          onClick={() => {
-          setSidebarCollapsed((prev) => {
-            const next = !prev;
-            setSidebarOpen(!next);
-            return next;
-          });
-        }}
-          aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {sidebarCollapsed ? "X" : "X"}
-        </button>
-      </div>
+          <span>Modules</span>
+        </div>
         <nav className="sidebar-nav">
           {navItems.map((item) => (
             <button
@@ -198,30 +199,15 @@ const WaxReceiveLineEditPage = () => {
                 navigate("/");
               }}
             >
-              {item}
+              <span className="nav-icon" data-icon={getNavIcon(item)} aria-hidden="true" />
+              <span>{item}</span>
             </button>
           ))}
         </nav>
       </aside>
 
-      <div
-        className={`sidebar-backdrop ${sidebarOpen && !sidebarCollapsed ? "show" : ""}`}
-        onClick={() => setSidebarOpen(false)}
-      />
-
-      <section className="dashboard-main">
+      <section className="dashboard-main" onClick={() => setProfileOpen(false)}>
         <header className="topbar">
-          <button
-            type="button"
-            className={`hamburger ${sidebarCollapsed && !sidebarOpen ? "always" : ""}`}
-            aria-label="Toggle sidebar"
-            onClick={() => setSidebarOpen(true)}
-          >
-            <span />
-            <span />
-            <span />
-          </button>
-
           <div className="topbar-logo">
             <img src={rudraLogo} alt="Rudra Jewels" />
           </div>
@@ -230,24 +216,48 @@ const WaxReceiveLineEditPage = () => {
             <button
               type="button"
               className="profile-btn"
-              onClick={() => setProfileOpen((prev) => !prev)}
+              onClick={(event) => {
+              event.stopPropagation();
+              setProfileOpen((prev) => !prev);
+            }}
               aria-label="Profile"
             />
 
             {profileOpen && (
-              <div className="profile-card">
-                <h2>
-                  {`${user?.first_name || ""} ${user?.last_name || ""}`.trim() ||
-                    user?.email ||
-                    "Profile"}
-                </h2>
-                <p>Login successful. Welcome to inventory management.</p>
-                <div className="meta">
-                  <span>Email: {user?.email}</span>
-                  <span>Role: {user?.role}</span>
+              <div className="profile-card" onClick={(event) => event.stopPropagation()}>
+              <div className="profile-header">
+                <div className="profile-avatar">
+                  {`${user?.first_name || ""} ${user?.last_name || ""}`.trim().slice(0, 1).toUpperCase() ||
+                    user?.email?.slice(0, 1).toUpperCase() ||
+                    "U"}
                 </div>
-                <button onClick={handleLogout}>Logout</button>
+                <div className="profile-title">
+                  <h3>{user?.email || "Profile"}</h3>
+                  <span>Login successful</span>
+                </div>
               </div>
+              <div className="profile-body">
+                <div className="profile-row">
+                  <span className="profile-icon email" aria-hidden="true" />
+                  <div>
+                    <strong>Email</strong>
+                    <div>{user?.email || "-"}</div>
+                  </div>
+                </div>
+                <div className="profile-row">
+                  <span className="profile-icon role" aria-hidden="true" />
+                  <div>
+                    <strong>Role</strong>
+                    <div>{user?.role || "-"}</div>
+                  </div>
+                </div>
+              </div>
+              <div className="profile-footer">
+                <button className="profile-logout" onClick={handleLogout}>
+                  Logout
+                </button>
+              </div>
+            </div>
             )}
           </div>
         </header>
@@ -317,6 +327,7 @@ const WaxReceiveLineEditPage = () => {
                     disabled={!record}
                   >
                     <option value="">Select size</option>
+                    <option value="__none__">No Value</option>
                     {sizes.map((size) => (
                       <option key={size.id} value={size.id}>
                         {size.name}

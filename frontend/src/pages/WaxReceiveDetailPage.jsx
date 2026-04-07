@@ -22,6 +22,20 @@ const MASTER_TABS = [
   { key: "stock_management", label: "StockManagement" },
 ];
 
+const NAV_ICON_MAP = {
+  "Vendor-Master": "vendor",
+  "Item-Master": "item",
+  "Size-Master": "size",
+  "Wax-Receive": "wax",
+  "Issue-Master": "issue",
+  "StockManagement": "stock",
+  "User Management": "user",
+  "Deleted Records": "trash",
+};
+
+const getNavIcon = (label) => NAV_ICON_MAP[label] || "default";
+
+
 const API_ROOT = import.meta.env.VITE_API_BASE_URL || window.location.origin;
 
 const formatDateTime = (value) => {
@@ -40,8 +54,7 @@ const WaxReceiveDetailPage = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { user, logout } = useAuth();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
   const [profileOpen, setProfileOpen] = useState(false);
 
   const waxReceives = useSelector((state) => state.waxReceive.records);
@@ -58,6 +71,7 @@ const WaxReceiveDetailPage = () => {
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filtersClosing, setFiltersClosing] = useState(false);
   const [filterItemName, setFilterItemName] = useState("");
   const [filterSizeName, setFilterSizeName] = useState("");
   const { visibleCount, sentinelRef } = useInfiniteScroll(lines.length);
@@ -80,6 +94,17 @@ const WaxReceiveDetailPage = () => {
     return map;
   }, [user]);
 
+  const permission = useMemo(() => {
+    if (!user) return {};
+    if (user.role === "admin") {
+      return { can_create_update: true, can_delete: true };
+    }
+    return permissionMap.get("wax_receive") || {};
+  }, [permissionMap, user]);
+
+  const canCreateUpdate = user?.role === "admin" || Boolean(permission.can_create_update);
+  const canDelete = user?.role === "admin" || Boolean(permission.can_delete);
+
   const navItems = useMemo(() => {
     if (!user) return [];
     if (user.role === "admin") {
@@ -93,6 +118,20 @@ const WaxReceiveDetailPage = () => {
   const handleLogout = () => {
     logout();
     navigate("/login", { replace: true });
+  };
+
+  const openFilters = () => {
+    setFiltersClosing(false);
+    setFiltersOpen(true);
+  };
+
+  const closeFilters = () => {
+    if (filtersClosing) return;
+    setFiltersClosing(true);
+    window.setTimeout(() => {
+      setFiltersOpen(false);
+      setFiltersClosing(false);
+    }, 200);
   };
 
   useEffect(() => {
@@ -129,6 +168,7 @@ const WaxReceiveDetailPage = () => {
   };
 
   const confirmDelete = async () => {
+    if (!canDelete) return;
     if (!deleteTarget) return;
     setDeleteError("");
     setDeleting(true);
@@ -160,6 +200,7 @@ const WaxReceiveDetailPage = () => {
   };
 
   const confirmBulkDelete = async () => {
+    if (!canDelete) return;
     if (selectedIds.length === 0) return;
     setDeleting(true);
     try {
@@ -185,19 +226,19 @@ const WaxReceiveDetailPage = () => {
       </button>
     </div>
   ) : (
-    <div className="content-card">
-      <div className="section-head">
+    <div className="content-card vendor-panel">
+      <div className="section-head vendor-head">
         <div>
           <h2>Wax Receive #{record.id}</h2>
           <p>
             Vendor: {record.vendor_name} | Date: {formatDateTime(record.date_time)}
           </p>
         </div>
-        <div className="item-toolbar">
-          {selectedIds.length > 0 && (
+        <div className="item-toolbar vendor-head-actions">
+          {selectedIds.length > 0 && canDelete && (
             <button
               type="button"
-              className="small-btn danger"
+              className="add-btn danger"
               onClick={() => setBulkDeleteOpen(true)}
             >
               Delete ({selectedIds.length})
@@ -205,22 +246,23 @@ const WaxReceiveDetailPage = () => {
           )}
           <button
             type="button"
-            className="add-btn"
-            onClick={() => setFiltersOpen(true)}
+            className="action-btn filter"
+            onClick={openFilters}
           >
             Filters
           </button>
           <button
             type="button"
-            className="add-btn"
+            className="action-btn add"
             onClick={() => navigate(`/wax-receives/${id}/lines/new`)}
+            disabled={!canCreateUpdate}
           >
             Add Line
           </button>
         </div>
       </div>
 
-      <div className="table-wrap">
+      <div className="table-wrap vendor-table">
         <table className="records-table">
           <thead>
             <tr>
@@ -229,6 +271,7 @@ const WaxReceiveDetailPage = () => {
                   type="checkbox"
                   checked={lines.length > 0 && selectedIds.length === lines.length}
                   onChange={toggleSelectAll}
+                  disabled={!canDelete}
                 />
               </th>
               <th>Item</th>
@@ -237,19 +280,20 @@ const WaxReceiveDetailPage = () => {
               <th>Quantity</th>
               <th>Rate</th>
               <th>Amount</th>
+              <th>Media</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {loadingLines ? (
               <tr>
-                <td colSpan="8" className="empty-row">
+                <td colSpan="9" className="empty-row">
                   Loading lines...
                 </td>
               </tr>
             ) : lines.length === 0 ? (
               <tr>
-                <td colSpan="8" className="empty-row">
+                <td colSpan="9" className="empty-row">
                   No lines yet.
                 </td>
               </tr>
@@ -261,6 +305,7 @@ const WaxReceiveDetailPage = () => {
                       type="checkbox"
                       checked={selectedIds.includes(line.id)}
                       onChange={() => toggleSelect(line.id)}
+                      disabled={!canDelete}
                     />
                   </td>
                   <td>{line.item_name}</td>
@@ -270,24 +315,25 @@ const WaxReceiveDetailPage = () => {
                   <td>{line.rate}</td>
                   <td>{line.amount}</td>
                   <td>
-                    <div className="action-group">
-                      <button
-                        type="button"
-                        className="small-btn info icon-btn"
-                        data-action="view"
-                        data-icon="eye"
-                        aria-label="View"
-                        onClick={() => setViewImageUrl(line.image || "")}
-                        disabled={!line.image}
-                      >
-                        <span className="sr-only">View</span>
-                      </button>
+                    <button
+                      type="button"
+                      className="media-btn"
+                      aria-label="View attachment"
+                      onClick={() => setViewImageUrl(line.image || "")}
+                      disabled={!line.image}
+                    >
+                      <span className="sr-only">View attachment</span>
+                    </button>
+                  </td>
+                  <td>
+                    <div className="action-group vendor-actions">
                       <button
                         type="button"
                         className="small-btn"
                         data-action="edit"
                         data-icon="✎"
                         onClick={() => navigate(`/wax-receives/${id}/lines/${line.id}/edit`)}
+                        disabled={!canCreateUpdate}
                       >
                         Edit
                       </button>
@@ -306,9 +352,12 @@ const WaxReceiveDetailPage = () => {
                         data-action="delete"
                         data-icon="✖"
                         onClick={() => {
-                          setDeleteError("");
-                          setDeleteTarget(line);
+                          if (canDelete) {
+                            setDeleteError("");
+                            setDeleteTarget(line);
+                          }
                         }}
+                        disabled={!canDelete}
                       >
                         Delete
                       </button>
@@ -343,8 +392,11 @@ const WaxReceiveDetailPage = () => {
       )}
 
       {filtersOpen && (
-        <div className="modal-overlay" onClick={() => setFiltersOpen(false)}>
-          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+        <div className="modal-overlay filter-overlay" onClick={closeFilters}>
+          <div
+            className={`modal-card filter-card ${filtersClosing ? "closing" : ""}`}
+            onClick={(event) => event.stopPropagation()}
+          >
             <h3>Filters</h3>
             <div className="filter-row">
               <div className="filter-field">
@@ -379,7 +431,7 @@ const WaxReceiveDetailPage = () => {
               </div>
             </div>
             <div className="modal-actions">
-              <button type="button" className="secondary-btn" onClick={() => setFiltersOpen(false)}>
+              <button type="button" className="secondary-btn" onClick={closeFilters}>
                 Close
               </button>
             </div>
@@ -468,7 +520,7 @@ const WaxReceiveDetailPage = () => {
 
       {bulkDeleteOpen && (
         <div className="modal-overlay" onClick={() => setBulkDeleteOpen(false)}>
-          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+          <div className="modal-card delete-modal" onClick={(event) => event.stopPropagation()}>
             <h3>Confirm Delete</h3>
             <p>Are you sure you want to delete {selectedIds.length} lines?</p>
             {deleteError && <p className="error">{deleteError}</p>}
@@ -492,25 +544,11 @@ const WaxReceiveDetailPage = () => {
   );
 
   return (
-    <div className={`dashboard-shell ${sidebarCollapsed && sidebarOpen ? "sidebar-push" : ""}`}>
-      <aside className={`sidebar ${sidebarOpen ? "open" : ""} ${sidebarCollapsed ? "collapsed" : ""}`}>
+    <div className="dashboard-shell">
+      <aside className="sidebar open">
         <div className="sidebar-header">
-        <span>Modules</span>
-        <button
-          type="button"
-          className="sidebar-toggle"
-          onClick={() => {
-          setSidebarCollapsed((prev) => {
-            const next = !prev;
-            setSidebarOpen(!next);
-            return next;
-          });
-        }}
-          aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {sidebarCollapsed ? "X" : "X"}
-        </button>
-      </div>
+          <span>Modules</span>
+        </div>
         <nav className="sidebar-nav">
           {navItems.map((item) => (
             <button
@@ -522,30 +560,15 @@ const WaxReceiveDetailPage = () => {
                 navigate("/");
               }}
             >
-              {item}
+              <span className="nav-icon" data-icon={getNavIcon(item)} aria-hidden="true" />
+              <span>{item}</span>
             </button>
           ))}
         </nav>
       </aside>
 
-      <div
-        className={`sidebar-backdrop ${sidebarOpen && !sidebarCollapsed ? "show" : ""}`}
-        onClick={() => setSidebarOpen(false)}
-      />
-
-      <section className="dashboard-main">
+      <section className="dashboard-main" onClick={() => setProfileOpen(false)}>
         <header className="topbar">
-          <button
-            type="button"
-            className={`hamburger ${sidebarCollapsed && !sidebarOpen ? "always" : ""}`}
-            aria-label="Toggle sidebar"
-            onClick={() => setSidebarOpen(true)}
-          >
-            <span />
-            <span />
-            <span />
-          </button>
-
           <div className="topbar-logo">
             <img src={rudraLogo} alt="Rudra Jewels" />
           </div>
@@ -554,24 +577,48 @@ const WaxReceiveDetailPage = () => {
             <button
               type="button"
               className="profile-btn"
-              onClick={() => setProfileOpen((prev) => !prev)}
+              onClick={(event) => {
+              event.stopPropagation();
+              setProfileOpen((prev) => !prev);
+            }}
               aria-label="Profile"
             />
 
             {profileOpen && (
-              <div className="profile-card">
-                <h2>
-                  {`${user?.first_name || ""} ${user?.last_name || ""}`.trim() ||
-                    user?.email ||
-                    "Profile"}
-                </h2>
-                <p>Login successful. Welcome to inventory management.</p>
-                <div className="meta">
-                  <span>Email: {user?.email}</span>
-                  <span>Role: {user?.role}</span>
+              <div className="profile-card" onClick={(event) => event.stopPropagation()}>
+              <div className="profile-header">
+                <div className="profile-avatar">
+                  {`${user?.first_name || ""} ${user?.last_name || ""}`.trim().slice(0, 1).toUpperCase() ||
+                    user?.email?.slice(0, 1).toUpperCase() ||
+                    "U"}
                 </div>
-                <button onClick={handleLogout}>Logout</button>
+                <div className="profile-title">
+                  <h3>{user?.email || "Profile"}</h3>
+                  <span>Login successful</span>
+                </div>
               </div>
+              <div className="profile-body">
+                <div className="profile-row">
+                  <span className="profile-icon email" aria-hidden="true" />
+                  <div>
+                    <strong>Email</strong>
+                    <div>{user?.email || "-"}</div>
+                  </div>
+                </div>
+                <div className="profile-row">
+                  <span className="profile-icon role" aria-hidden="true" />
+                  <div>
+                    <strong>Role</strong>
+                    <div>{user?.role || "-"}</div>
+                  </div>
+                </div>
+              </div>
+              <div className="profile-footer">
+                <button className="profile-logout" onClick={handleLogout}>
+                  Logout
+                </button>
+              </div>
+            </div>
             )}
           </div>
         </header>

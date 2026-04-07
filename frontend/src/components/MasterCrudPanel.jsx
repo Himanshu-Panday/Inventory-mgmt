@@ -185,24 +185,24 @@ const MasterCrudPanel = ({ tabName, canCreateUpdate, canDelete }) => {
   };
 
   return (
-    <div className="content-card">
-      <div className="section-head">
+    <div className="content-card vendor-panel">
+      <div className="section-head vendor-head">
         <div>
           <h2>{config.title}</h2>
           <p>Manage your {config.title.toLowerCase()} entries.</p>
         </div>
-        <div className="action-group">
+        <div className="action-group vendor-head-actions">
           {selectedIds.length > 0 && (
             <button
               type="button"
-              className="small-btn danger"
+              className="add-btn danger"
               onClick={() => setBulkDeleteOpen(true)}
               disabled={!canDelete}
             >
               Delete ({selectedIds.length})
             </button>
           )}
-          <button type="button" className="add-btn" onClick={openCreateModal} disabled={!canCreateUpdate}>
+          <button type="button" className="action-btn add" onClick={openCreateModal} disabled={!canCreateUpdate}>
             Add
           </button>
         </div>
@@ -213,7 +213,7 @@ const MasterCrudPanel = ({ tabName, canCreateUpdate, canDelete }) => {
       {loading ? (
         <p>Loading records...</p>
       ) : (
-        <div className="table-wrap">
+        <div className="table-wrap vendor-table">
           <table className="records-table">
             <thead>
               <tr>
@@ -251,7 +251,7 @@ const MasterCrudPanel = ({ tabName, canCreateUpdate, canDelete }) => {
                     <td>{formatDate(record.date)}</td>
                     <td>{record.created_by_email || "-"}</td>
                     <td>
-                      <div className="action-group">
+                      <div className="action-group vendor-actions">
                         <button
                           type="button"
                           className="small-btn"
@@ -388,7 +388,7 @@ const MasterCrudPanel = ({ tabName, canCreateUpdate, canDelete }) => {
           setBulkDeleteOpen(false);
           setDeleteError("");
         }}>
-          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+          <div className="modal-card delete-modal" onClick={(event) => event.stopPropagation()}>
             <h3>Confirm Delete</h3>
             <p>Are you sure you want to delete {selectedIds.length} records?</p>
             {deleteError && <p className="error">{deleteError}</p>}

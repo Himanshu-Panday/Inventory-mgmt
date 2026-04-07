@@ -34,6 +34,7 @@ const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
   const [filterVendorName, setFilterVendorName] = useState("");
   const [filterCreatedBy, setFilterCreatedBy] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filtersClosing, setFiltersClosing] = useState(false);
   const createdByOptions = Array.from(
     new Set(records.map((record) => record.created_by_email).filter(Boolean)),
   );
@@ -53,6 +54,20 @@ const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
   useEffect(() => {
     dispatch(fetchVendors());
   }, [dispatch]);
+
+  const openFilters = () => {
+    setFiltersClosing(false);
+    setFiltersOpen(true);
+  };
+
+  const closeFilters = () => {
+    if (filtersClosing) return;
+    setFiltersClosing(true);
+    window.setTimeout(() => {
+      setFiltersOpen(false);
+      setFiltersClosing(false);
+    }, 200);
+  };
 
 
   const openHistoryModal = async (record) => {
@@ -107,24 +122,24 @@ const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
   };
 
   return (
-    <div className="content-card">
-      <div className="section-head">
+    <div className="content-card vendor-panel">
+      <div className="section-head vendor-head">
         <div>
           <h2>Vendor Master</h2>
           <p>Manage vendor list records.</p>
         </div>
-        <div className="action-group">
+        <div className="action-group vendor-head-actions">
           <button
             type="button"
-            className="small-btn info"
-            onClick={() => setFiltersOpen(true)}
+            className="action-btn filter"
+            onClick={openFilters}
           >
             Filters
           </button>
           {selectedIds.length > 0 && (
             <button
               type="button"
-              className="small-btn danger"
+              className="add-btn danger"
               onClick={() => setBulkDeleteOpen(true)}
               disabled={!canDelete}
             >
@@ -133,7 +148,7 @@ const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
           )}
           <button
             type="button"
-            className="add-btn"
+            className="action-btn add"
             onClick={() => navigate("/vendors/new")}
             disabled={!canCreateUpdate}
           >
@@ -145,8 +160,11 @@ const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
       {error && <p className="error">{error}</p>}
 
       {filtersOpen && (
-        <div className="modal-overlay" onClick={() => setFiltersOpen(false)}>
-          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+        <div className="modal-overlay filter-overlay" onClick={closeFilters}>
+          <div
+            className={`modal-card filter-card ${filtersClosing ? "closing" : ""}`}
+            onClick={(event) => event.stopPropagation()}
+          >
             <h3>Filters</h3>
             <div className="filter-row">
               <div className="filter-field">
@@ -176,7 +194,7 @@ const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
               </div>
             </div>
             <div className="modal-actions">
-              <button type="button" className="secondary-btn" onClick={() => setFiltersOpen(false)}>
+              <button type="button" className="secondary-btn" onClick={closeFilters}>
                 Close
               </button>
             </div>
@@ -187,7 +205,7 @@ const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
       {loading ? (
         <p>Loading vendors...</p>
       ) : (
-        <div className="table-wrap">
+        <div className="table-wrap vendor-table">
           <table className="records-table">
             <thead>
               <tr>
@@ -230,7 +248,7 @@ const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
                     <td>{formatDateTime(record.created_at)}</td>
                     <td>{record.created_by_email || "-"}</td>
                     <td>
-                      <div className="action-group">
+                      <div className="action-group vendor-actions">
                         <button
                           type="button"
                           className="small-btn"
@@ -357,7 +375,7 @@ const VendorCrudPanel = ({ canCreateUpdate, canDelete }) => {
           setBulkDeleteOpen(false);
           setDeleteError("");
         }}>
-          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+          <div className="modal-card delete-modal" onClick={(event) => event.stopPropagation()}>
             <h3>Confirm Delete</h3>
             <p>Are you sure you want to delete {selectedIds.length} records?</p>
             {deleteError && <p className="error">{deleteError}</p>}

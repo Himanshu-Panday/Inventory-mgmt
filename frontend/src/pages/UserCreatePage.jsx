@@ -21,6 +21,20 @@ const MASTER_TABS = [
   { key: "stock_management", label: "StockManagement" },
 ];
 
+const NAV_ICON_MAP = {
+  "Vendor-Master": "vendor",
+  "Item-Master": "item",
+  "Size-Master": "size",
+  "Wax-Receive": "wax",
+  "Issue-Master": "issue",
+  "StockManagement": "stock",
+  "User Management": "user",
+  "Deleted Records": "trash",
+};
+
+const getNavIcon = (label) => NAV_ICON_MAP[label] || "default";
+
+
 const defaultForm = {
   email: "",
   password: "",
@@ -52,8 +66,7 @@ const UserCreatePage = () => {
   const dispatch = useDispatch();
   const { user, logout } = useAuth();
   const isEditing = Boolean(id);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
   const [profileOpen, setProfileOpen] = useState(false);
 
   const [masters, setMasters] = useState([]);
@@ -199,25 +212,11 @@ const UserCreatePage = () => {
   };
 
   return (
-    <div className={`dashboard-shell ${sidebarCollapsed && sidebarOpen ? "sidebar-push" : ""}`}>
-      <aside className={`sidebar ${sidebarOpen ? "open" : ""} ${sidebarCollapsed ? "collapsed" : ""}`}>
+    <div className="dashboard-shell">
+      <aside className="sidebar open">
         <div className="sidebar-header">
-        <span>Modules</span>
-        <button
-          type="button"
-          className="sidebar-toggle"
-          onClick={() => {
-          setSidebarCollapsed((prev) => {
-            const next = !prev;
-            setSidebarOpen(!next);
-            return next;
-          });
-        }}
-          aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {sidebarCollapsed ? "X" : "X"}
-        </button>
-      </div>
+          <span>Modules</span>
+        </div>
         <nav className="sidebar-nav">
           {navItems.map((item) => (
             <button
@@ -229,30 +228,15 @@ const UserCreatePage = () => {
                 navigate("/");
               }}
             >
-              {item}
+              <span className="nav-icon" data-icon={getNavIcon(item)} aria-hidden="true" />
+              <span>{item}</span>
             </button>
           ))}
         </nav>
       </aside>
 
-      <div
-        className={`sidebar-backdrop ${sidebarOpen && !sidebarCollapsed ? "show" : ""}`}
-        onClick={() => setSidebarOpen(false)}
-      />
-
-      <section className="dashboard-main">
+      <section className="dashboard-main" onClick={() => setProfileOpen(false)}>
         <header className="topbar">
-          <button
-            type="button"
-            className={`hamburger ${sidebarCollapsed && !sidebarOpen ? "always" : ""}`}
-            aria-label="Toggle sidebar"
-            onClick={() => setSidebarOpen(true)}
-          >
-            <span />
-            <span />
-            <span />
-          </button>
-
           <div className="topbar-logo">
             <img src={rudraLogo} alt="Rudra Jewels" />
           </div>
@@ -261,40 +245,68 @@ const UserCreatePage = () => {
             <button
               type="button"
               className="profile-btn"
-              onClick={() => setProfileOpen((prev) => !prev)}
+              onClick={(event) => {
+              event.stopPropagation();
+              setProfileOpen((prev) => !prev);
+            }}
               aria-label="Profile"
             />
 
             {profileOpen && (
-              <div className="profile-card">
-                <h2>
-                  {`${user?.first_name || ""} ${user?.last_name || ""}`.trim() ||
-                    user?.email ||
-                    "Profile"}
-                </h2>
-                <p>Login successful. Welcome to inventory management.</p>
-                <div className="meta">
-                  <span>Email: {user?.email}</span>
-                  <span>Role: {user?.role}</span>
+              <div className="profile-card" onClick={(event) => event.stopPropagation()}>
+              <div className="profile-header">
+                <div className="profile-avatar">
+                  {`${user?.first_name || ""} ${user?.last_name || ""}`.trim().slice(0, 1).toUpperCase() ||
+                    user?.email?.slice(0, 1).toUpperCase() ||
+                    "U"}
                 </div>
-                <button onClick={handleLogout}>Logout</button>
+                <div className="profile-title">
+                  <h3>{user?.email || "Profile"}</h3>
+                  <span>Login successful</span>
+                </div>
               </div>
+              <div className="profile-body">
+                <div className="profile-row">
+                  <span className="profile-icon email" aria-hidden="true" />
+                  <div>
+                    <strong>Email</strong>
+                    <div>{user?.email || "-"}</div>
+                  </div>
+                </div>
+                <div className="profile-row">
+                  <span className="profile-icon role" aria-hidden="true" />
+                  <div>
+                    <strong>Role</strong>
+                    <div>{user?.role || "-"}</div>
+                  </div>
+                </div>
+              </div>
+              <div className="profile-footer">
+                <button className="profile-logout" onClick={handleLogout}>
+                  Logout
+                </button>
+              </div>
+            </div>
             )}
           </div>
         </header>
 
-        <div className="content-card">
-          <div className="section-head">
-            <div>
-              <h2>{isEditing ? "Edit User" : "Create User"}</h2>
-              <p>
-                {isEditing
-                  ? "Update user details and master permissions."
-                  : "Create a new normal user and assign master permissions."}
-              </p>
+        <div className="content-card user-form-card">
+          <div className="section-head user-form-head">
+            <div className="user-form-title">
+              <span className="title-icon" aria-hidden="true" />
+              <div>
+                <h2>{isEditing ? "Edit User" : "Create User"}</h2>
+                <p>
+                  {isEditing
+                    ? "Update user details and master permissions."
+                    : "Create a new normal user and assign master permissions."}
+                </p>
+              </div>
             </div>
             <div className="action-group">
-              <button type="button" className="small-btn" onClick={() => navigate(-1)}>
+              <button type="button" className="user-back" onClick={() => navigate(-1)}>
+                <span className="btn-icon back" aria-hidden="true" />
                 Back
               </button>
             </div>
@@ -303,56 +315,80 @@ const UserCreatePage = () => {
           {loading ? (
             <p>Loading master permissions...</p>
           ) : (
-            <form className="form" onSubmit={handleSubmit}>
-              <label htmlFor="user-email">Email</label>
-              <input
-                id="user-email"
-                type="email"
-                value={form.email}
-                onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
-                required={!isEditing}
-                disabled={isEditing}
-              />
-
-              {!isEditing && (
-                <>
-                  <label htmlFor="user-password">Password</label>
+            <form className="form user-form" onSubmit={handleSubmit}>
+              <div className="form-grid user-form-grid">
+                <div className="form-group">
+                  <label htmlFor="user-email">Email</label>
                   <input
-                    id="user-password"
-                    type="password"
-                    value={form.password}
-                    onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
-                    required
+                    id="user-email"
+                    type="email"
+                    value={form.email}
+                    onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
+                    required={!isEditing}
+                    disabled={isEditing}
+                    placeholder="user@example.com"
                   />
-                </>
-              )}
+                </div>
 
-              <label htmlFor="user-first">First Name</label>
-              <input
-                id="user-first"
-                type="text"
-                value={form.first_name}
-                onChange={(event) => setForm((prev) => ({ ...prev, first_name: event.target.value }))}
-              />
+                {!isEditing && (
+                  <div className="form-group">
+                    <label htmlFor="user-password">Password</label>
+                    <input
+                      id="user-password"
+                      type="password"
+                      value={form.password}
+                      onChange={(event) =>
+                        setForm((prev) => ({ ...prev, password: event.target.value }))
+                      }
+                      required
+                      placeholder="••••••••"
+                    />
+                  </div>
+                )}
 
-              <label htmlFor="user-last">Last Name</label>
-              <input
-                id="user-last"
-                type="text"
-                value={form.last_name}
-                onChange={(event) => setForm((prev) => ({ ...prev, last_name: event.target.value }))}
-              />
+                <div className="form-group">
+                  <label htmlFor="user-first">First Name</label>
+                  <input
+                    id="user-first"
+                    type="text"
+                    value={form.first_name}
+                    onChange={(event) =>
+                      setForm((prev) => ({ ...prev, first_name: event.target.value }))
+                    }
+                    placeholder="First name"
+                  />
+                </div>
 
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={form.is_active}
-                  onChange={(event) => setForm((prev) => ({ ...prev, is_active: event.target.checked }))}
-                />
-                Active User
-              </label>
+                <div className="form-group">
+                  <label htmlFor="user-last">Last Name</label>
+                  <input
+                    id="user-last"
+                    type="text"
+                    value={form.last_name}
+                    onChange={(event) =>
+                      setForm((prev) => ({ ...prev, last_name: event.target.value }))
+                    }
+                    placeholder="Last name"
+                  />
+                </div>
+              </div>
 
-              <div className="permission-grid">
+              <div className="user-toggle">
+                <label className="toggle">
+                  <input
+                    type="checkbox"
+                    checked={form.is_active}
+                    onChange={(event) =>
+                      setForm((prev) => ({ ...prev, is_active: event.target.checked }))
+                    }
+                  />
+                  <span className="toggle-track" aria-hidden="true" />
+                  <span className="toggle-label">Active User</span>
+                </label>
+                {form.is_active && <span className="status-pill active">Active</span>}
+              </div>
+
+              <div className="permission-grid user-permissions">
                 <h4>Master Permissions</h4>
                 {permissionRows.map((permission) => (
                   <div key={permission.master_name} className="permission-row">
@@ -360,7 +396,7 @@ const UserCreatePage = () => {
                     {permission.master_name === "deleted_records" ? (
                       <button
                         type="button"
-                        className={`perm-icon perm-access ${permission.can_read ? "active" : ""}`}
+                        className={`perm-icon perm-access align-right ${permission.can_read ? "active" : ""}`}
                         onClick={() =>
                           setPermissionValue(
                             permission.master_name,
@@ -423,8 +459,8 @@ const UserCreatePage = () => {
 
               {formError && <p className="error">{formError}</p>}
 
-              <div className="modal-actions">
-                <button type="submit" disabled={saving}>
+              <div className="modal-actions user-form-actions">
+                <button type="submit" disabled={saving} className="user-submit">
                   {saving ? "Saving..." : isEditing ? "Update" : "Create"}
                 </button>
               </div>

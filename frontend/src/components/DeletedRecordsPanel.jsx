@@ -127,15 +127,15 @@ const DeletedRecordsPanel = () => {
   };
 
   return (
-    <div className="content-card">
-      <div className="section-head">
+    <div className="content-card vendor-panel deleted-panel">
+      <div className="section-head vendor-head deleted-head">
         <div>
           <h2>Deleted Records</h2>
           <p>Recover inactive master records by category.</p>
         </div>
       </div>
 
-      <div className="tab-row">
+      <div className="tab-row deleted-tabs">
         {tabKeys.map((key) => (
           <button
             key={key}
@@ -153,7 +153,7 @@ const DeletedRecordsPanel = () => {
       {loading ? (
         <p>Loading inactive records...</p>
       ) : (
-        <div className="table-wrap">
+        <div className="table-wrap vendor-table deleted-table">
           <table className="records-table">
             <thead>
               <tr>
@@ -177,10 +177,10 @@ const DeletedRecordsPanel = () => {
                     <td>{formatDateTime(activeConfig.dateValue(record))}</td>
                     <td>{activeConfig.createdBy(record) || "-"}</td>
                     <td>
-                      <div className="action-group">
+                      <div className="action-group vendor-actions deleted-actions">
                         <button
                           type="button"
-                          className="small-btn"
+                          className="small-btn info"
                           data-action="recover"
                           data-icon="↺"
                           onClick={() => handleRecover(record)}

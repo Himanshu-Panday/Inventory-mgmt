@@ -1,19 +1,8 @@
 import { useEffect, useState } from "react";
 
 import useInfiniteScroll from "../hooks/useInfiniteScroll";
-import {
-  createIssueMaster,
-  listIssueMasters,
-  listStockInDetails,
-  listStockManagement,
-  updateIssueMaster,
-} from "../api/mgmt";
-
-const defaultForm = {
-  out_weight: "",
-  out_quantity: "",
-  description: "",
-};
+import { listIssueMasters, listStockInDetails, listStockManagement } from "../api/mgmt";
+import { useNavigate } from "react-router-dom";
 
 const escapeCsv = (value) => {
   const text = value === null || value === undefined ? "" : String(value);
@@ -27,12 +16,7 @@ const StockManagementPanel = () => {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [modalOpen, setModalOpen] = useState(false);
-  const [selectedRecord, setSelectedRecord] = useState(null);
-  const [form, setForm] = useState(defaultForm);
-  const [formError, setFormError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [editingIssue, setEditingIssue] = useState(null);
+  const navigate = useNavigate();
   const [viewOpen, setViewOpen] = useState(false);
   const [viewRows, setViewRows] = useState([]);
   const [viewTitle, setViewTitle] = useState("");
@@ -52,16 +36,7 @@ const StockManagementPanel = () => {
     loadStock();
   }, []);
 
-  const openIssueModal = async (record) => {
-    if (!record.size) {
-      setFormError("Cannot issue stock without size.");
-      return;
-    }
-    setSelectedRecord(record);
-    setForm(defaultForm);
-    setFormError("");
-    setEditingIssue(null);
-    setModalOpen(true);
+  const openIssuePage = async (record) => {
     try {
       const issues = await listIssueMasters();
       const existing = issues
@@ -71,16 +46,30 @@ const StockManagementPanel = () => {
             String(issue.size) === String(record.size),
         )
         .sort((a, b) => new Date(b.date_time) - new Date(a.date_time))[0];
+      const state = {
+        returnTo: "/",
+        returnToTab: "StockManagement",
+        prefill: {
+          item: record.item,
+          size: record.size,
+        },
+      };
       if (existing) {
-        setEditingIssue(existing);
-        setForm({
-          out_weight: String(existing.out_weight ?? ""),
-          out_quantity: String(existing.out_quantity ?? ""),
-          description: existing.description || "",
-        });
+        navigate(`/issue-masters/${existing.id}/edit`, { state });
+      } else {
+        navigate("/issue-masters/new", { state });
       }
     } catch {
-      setEditingIssue(null);
+      navigate("/issue-masters/new", {
+        state: {
+          returnTo: "/",
+          returnToTab: "StockManagement",
+          prefill: {
+            item: record.item,
+            size: record.size,
+          },
+        },
+      });
     }
   };
 
@@ -95,48 +84,6 @@ const StockManagementPanel = () => {
       setViewRows([]);
     } finally {
       setViewLoading(false);
-    }
-  };
-
-  const closeModal = () => {
-    setModalOpen(false);
-    setSelectedRecord(null);
-    setForm(defaultForm);
-    setFormError("");
-    setEditingIssue(null);
-  };
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setFormError("");
-
-    if (!form.out_weight || !form.out_quantity) {
-      setFormError("Weight and quantity are required.");
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const payload = {
-        item: Number(selectedRecord.item),
-        size: Number(selectedRecord.size),
-        out_weight: Number(form.out_weight),
-        out_quantity: Number(form.out_quantity),
-        description: form.description,
-      };
-      if (editingIssue) {
-        await updateIssueMaster({ id: editingIssue.id, payload });
-      } else {
-        await createIssueMaster(payload);
-      }
-      loadStock();
-      closeModal();
-    } catch (requestError) {
-      const apiMessage =
-        requestError?.response?.data?.detail || "Unable to save issue record.";
-      setFormError(apiMessage);
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -238,11 +185,8 @@ const StockManagementPanel = () => {
                       <div className="action-group">
                         <button
                           type="button"
-                          className="small-btn"
-                          data-action="issue"
-                          data-icon="⇩"
-                          onClick={() => openIssueModal(record)}
-                          disabled={!record.size}
+                          className="issue-btn"
+                          onClick={() => openIssuePage(record)}
                         >
                           Issue
                         </button>
@@ -263,60 +207,6 @@ const StockManagementPanel = () => {
             </tbody>
           </table>
           {visibleCount < records.length && <div ref={sentinelRef} className="inline-loader" />}
-        </div>
-      )}
-
-      {modalOpen && selectedRecord && (
-        <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
-            <h3>{editingIssue ? "Update Issue" : "Create Issue"}</h3>
-            <form className="form wax-form" onSubmit={handleSubmit}>
-              <label>Item</label>
-              <input type="text" value={selectedRecord.item_name} readOnly />
-
-              <label>Size</label>
-              <input type="text" value={selectedRecord.size_name} readOnly />
-
-              <label htmlFor="stock-out-weight">Out Weight</label>
-              <input
-                id="stock-out-weight"
-                type="number"
-                step="0.001"
-                value={form.out_weight}
-                onChange={(event) => setForm((prev) => ({ ...prev, out_weight: event.target.value }))}
-                required
-              />
-
-              <label htmlFor="stock-out-qty">Out Quantity</label>
-              <input
-                id="stock-out-qty"
-                type="number"
-                value={form.out_quantity}
-                onChange={(event) => setForm((prev) => ({ ...prev, out_quantity: event.target.value }))}
-                required
-              />
-
-              <label htmlFor="stock-desc">Description</label>
-              <input
-                id="stock-desc"
-                type="text"
-                value={form.description}
-                onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
-                placeholder="Optional description"
-              />
-
-              {formError && <p className="error">{formError}</p>}
-
-              <div className="modal-actions">
-                <button type="button" className="secondary-btn" onClick={closeModal}>
-                  Cancel
-                </button>
-                <button type="submit" disabled={submitting}>
-                  {submitting ? "Saving..." : editingIssue ? "Update" : "Create"}
-                </button>
-              </div>
-            </form>
-          </div>
         </div>
       )}
 

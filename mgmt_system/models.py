@@ -171,7 +171,13 @@ class WaxReceiveLine(models.Model):
 
 class IssueMaster(models.Model):
     item = models.ForeignKey(Item_Model, on_delete=models.PROTECT, related_name="issues")
-    size = models.ForeignKey(Size_Model, on_delete=models.PROTECT, related_name="issues")
+    size = models.ForeignKey(
+        Size_Model,
+        on_delete=models.PROTECT,
+        related_name="issues",
+        null=True,
+        blank=True,
+    )
     out_weight = models.DecimalField(max_digits=12, decimal_places=3)
     out_quantity = models.IntegerField()
     description = models.TextField(blank=True)

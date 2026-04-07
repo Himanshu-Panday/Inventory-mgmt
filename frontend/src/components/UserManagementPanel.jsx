@@ -40,6 +40,7 @@ const UserManagementPanel = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
@@ -78,18 +79,34 @@ const UserManagementPanel = () => {
               permission.can_create_update ||
               permission.can_delete,
           )
-          .map((permission) => {
-            const flags = [];
-            if (permission.can_read) flags.push("R");
-            if (permission.can_create_update) flags.push("CU");
-            if (permission.can_delete) flags.push("D");
-            return `${permission.master_label} (${flags.join("/") || "-"})`;
-          })
-          .join(", ");
+          .map((permission) => ({
+            label: permission.master_label,
+            flags: [
+              permission.can_read ? "R" : null,
+              permission.can_create_update ? "CU" : null,
+              permission.can_delete ? "D" : null,
+            ].filter(Boolean),
+          }));
         return acc;
       }, {}),
     [users],
   );
+
+  const visibleUsers = useMemo(() => {
+    if (!search.trim()) return users;
+    const term = search.trim().toLowerCase();
+    return users.filter((user) => {
+      const name = `${user.first_name || ""} ${user.last_name || ""}`.trim().toLowerCase();
+      return user.email?.toLowerCase().includes(term) || name.includes(term);
+    });
+  }, [users, search]);
+
+  const getInitials = (user) => {
+    const first = user.first_name?.trim()?.[0] || "";
+    const last = user.last_name?.trim()?.[0] || "";
+    const initials = `${first}${last}`.toUpperCase();
+    return initials || user.email?.trim()?.[0]?.toUpperCase() || "U";
+  };
 
   const openEditModal = (user) => {
     setEditingUser(user);
@@ -206,13 +223,14 @@ const UserManagementPanel = () => {
   };
 
   return (
-    <div className="content-card">
-      <div className="section-head">
+    <div className="content-card user-panel">
+      <div className="section-head user-head">
         <div>
           <h2>User Management</h2>
           <p>Create normal users and assign master-level read/write permissions.</p>
         </div>
-        <button type="button" className="add-btn" onClick={() => navigate("/users/new")}>
+        <button type="button" className="add-btn user-add" onClick={() => navigate("/users/new")}>
+          <span className="btn-icon" aria-hidden="true" />
           Add User
         </button>
       </div>
@@ -222,75 +240,113 @@ const UserManagementPanel = () => {
       {loading ? (
         <p>Loading users...</p>
       ) : (
-        <div className="table-wrap">
-          <table className="records-table">
-            <thead>
-              <tr>
-                <th>Email</th>
-                <th>Name</th>
-                <th>Status</th>
-                <th>Master Access</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.length === 0 ? (
+        <>
+          <div className="user-search">
+            <span className="search-icon" aria-hidden="true" />
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search by email or name..."
+              aria-label="Search users"
+            />
+          </div>
+          <div className="table-wrap user-table">
+            <table className="records-table">
+              <thead>
                 <tr>
-                  <td colSpan="5" className="empty-row">
-                    No users available.
-                  </td>
+                  <th>Email</th>
+                  <th>Name</th>
+                  <th>Status</th>
+                  <th>Master Access</th>
+                  <th>Actions</th>
                 </tr>
-              ) : (
-                users.map((user) => (
-                  <tr key={user.id}>
-                    <td>{user.email}</td>
-                    <td>{`${user.first_name || ""} ${user.last_name || ""}`.trim() || "-"}</td>
-                    <td>{user.is_active ? "Active" : "Inactive"}</td>
-                    <td>{permissionSummary[user.id] || "No access assigned"}</td>
-                    <td>
-                      <div className="action-group">
-                        {user.role !== "admin" && (
-                          <button
-                            type="button"
-                            className="small-btn"
-                            data-action="edit"
-                            data-icon="✎"
-                            onClick={() => navigate(`/users/${user.id}/edit`)}
-                          >
-                            Edit
-                          </button>
-                        )}
-                        {user.is_active ? (
-                          <button
-                            type="button"
-                            className="small-btn danger"
-                            data-action="deactivate"
-                            data-icon="⏻"
-                            onClick={() => handleToggleActive(user, false)}
-                            disabled={saving}
-                          >
-                            Deactivate
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            className="small-btn success"
-                            data-action="activate"
-                            data-icon="✔"
-                            onClick={() => handleToggleActive(user, true)}
-                            disabled={saving}
-                          >
-                            Activate
-                          </button>
-                        )}
-                      </div>
+              </thead>
+              <tbody>
+                {visibleUsers.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="empty-row">
+                      No users available.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ) : (
+                  visibleUsers.map((user) => (
+                    <tr key={user.id}>
+                      <td>{user.email}</td>
+                      <td>
+                        <div className="user-name">
+                          <span className="user-avatar">{getInitials(user)}</span>
+                          <span>{`${user.first_name || ""} ${user.last_name || ""}`.trim() || "-"}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`status-pill ${user.is_active ? "active" : "inactive"}`}>
+                          {user.is_active ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                      <td>
+                        {permissionSummary[user.id]?.length ? (
+                          <div className="permission-chips">
+                            {permissionSummary[user.id].map((permission) => (
+                              <div key={permission.label} className="permission-chip">
+                                <span className="permission-label">{permission.label}</span>
+                                <div className="permission-flags">
+                                  {permission.flags.includes("R") && <span className="flag r">R</span>}
+                                  {permission.flags.includes("CU") && <span className="flag cu">CU</span>}
+                                  {permission.flags.includes("D") && <span className="flag d">D</span>}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="muted">No access assigned</span>
+                        )}
+                      </td>
+                      <td>
+                        <div className="action-group user-actions">
+                          {user.role !== "admin" && (
+                            <button
+                              type="button"
+                              className="user-btn"
+                              data-action="edit"
+                              onClick={() => navigate(`/users/${user.id}/edit`)}
+                            >
+                              <span className="btn-icon edit" aria-hidden="true" />
+                              Edit
+                            </button>
+                          )}
+                          {user.is_active ? (
+                            <button
+                              type="button"
+                              className="user-btn danger"
+                              data-action="deactivate"
+                              onClick={() => handleToggleActive(user, false)}
+                              disabled={saving}
+                            >
+                              <span className="btn-icon deactivate" aria-hidden="true" />
+                              Deactivate
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="user-btn success"
+                              data-action="activate"
+                              onClick={() => handleToggleActive(user, true)}
+                              disabled={saving}
+                            >
+                              <span className="btn-icon activate" aria-hidden="true" />
+                              Activate
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {modalOpen && (

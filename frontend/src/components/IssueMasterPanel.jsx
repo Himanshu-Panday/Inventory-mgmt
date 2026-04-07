@@ -84,17 +84,17 @@ const IssueMasterPanel = ({ canCreateUpdate, canDelete }) => {
   };
 
   return (
-    <div className="content-card">
-      <div className="section-head">
+    <div className="content-card vendor-panel">
+      <div className="section-head vendor-head">
         <div>
           <h2>Issue Master</h2>
           <p>Record item issues.</p>
         </div>
-        <div className="action-group">
+        <div className="action-group vendor-head-actions">
           {selectedIds.length > 0 && (
             <button
               type="button"
-              className="small-btn danger"
+              className="add-btn danger"
               onClick={() => setBulkDeleteOpen(true)}
               disabled={!canDelete}
             >
@@ -103,7 +103,7 @@ const IssueMasterPanel = ({ canCreateUpdate, canDelete }) => {
           )}
           <button
             type="button"
-            className="add-btn"
+            className="action-btn add"
             onClick={() => navigate("/issue-masters/new")}
             disabled={!canCreateUpdate}
           >
@@ -117,7 +117,7 @@ const IssueMasterPanel = ({ canCreateUpdate, canDelete }) => {
       {loading ? (
         <p>Loading issues...</p>
       ) : (
-        <div className="table-wrap">
+        <div className="table-wrap vendor-table">
           <table className="records-table">
             <thead>
               <tr>
@@ -163,7 +163,7 @@ const IssueMasterPanel = ({ canCreateUpdate, canDelete }) => {
                     <td>{record.out_quantity}</td>
                     <td>{record.description || "-"}</td>
                     <td>
-                      <div className="action-group">
+                      <div className="action-group vendor-actions">
                         <button
                           type="button"
                           className="small-btn"
@@ -270,7 +270,7 @@ const IssueMasterPanel = ({ canCreateUpdate, canDelete }) => {
           setBulkDeleteOpen(false);
           setDeleteError("");
         }}>
-          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+          <div className="modal-card delete-modal" onClick={(event) => event.stopPropagation()}>
             <h3>Confirm Delete</h3>
             <p>Are you sure you want to delete {selectedIds.length} records?</p>
             {deleteError && <p className="error">{deleteError}</p>}

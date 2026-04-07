@@ -11,7 +11,7 @@ const formatDateTime = (value) => {
   return new Date(value).toLocaleString();
 };
 
-const WaxReceivePanel = ({ canCreateUpdate }) => {
+const WaxReceivePanel = ({ canCreateUpdate, canDelete }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { records, loading, submitting, error } = useSelector((state) => state.waxReceive);
@@ -55,6 +55,7 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
   };
 
   const confirmDelete = async () => {
+    if (!canDelete) return;
     if (!deleteTarget) return;
     setDeleteError("");
     try {
@@ -80,6 +81,7 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
   };
 
   const confirmBulkDelete = async () => {
+    if (!canDelete) return;
     if (selectedIds.length === 0) return;
     setDeleteError("");
     try {
@@ -92,27 +94,27 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
   };
 
   return (
-    <div className="content-card">
-      <div className="section-head">
+    <div className="content-card vendor-panel">
+      <div className="section-head vendor-head">
         <div>
           <h2>Wax Receive</h2>
           <p>Create wax receive entries for vendors.</p>
         </div>
-        <div className="action-group">
-          <div className="filter-field compact">
-            <label htmlFor="wax-filter-vendor">Search Record</label>
+        <div className="action-group vendor-head-actions">
+          <div className="filter-field compact wax-search">
             <input
               id="wax-filter-vendor"
               type="text"
               value={filterVendorName}
               onChange={(event) => setFilterVendorName(event.target.value)}
-              placeholder="Search"
+              placeholder="Search Record"
+              aria-label="Search Record"
             />
           </div>
-          {selectedIds.length > 0 && (
+          {selectedIds.length > 0 && canDelete && (
             <button
               type="button"
-              className="small-btn danger"
+              className="add-btn danger"
               onClick={() => setBulkDeleteOpen(true)}
               disabled={submitting}
             >
@@ -121,7 +123,7 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
           )}
           <button
             type="button"
-            className="add-btn"
+            className="action-btn add"
             onClick={() => navigate("/wax-receives/new")}
             disabled={!canCreateUpdate}
           >
@@ -135,7 +137,7 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
       {loading ? (
         <p>Loading wax receives...</p>
       ) : (
-        <div className="table-wrap">
+        <div className="table-wrap vendor-table">
           <table className="records-table">
             <thead>
               <tr>
@@ -186,7 +188,7 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
                     <td>{record.quantity ?? 0}</td>
                     <td>{record.total_amount ?? 0}</td>
                     <td>
-                      <div className="action-group">
+                      <div className="action-group vendor-actions">
                         <button
                           type="button"
                           className="small-btn"
@@ -216,12 +218,14 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
                           type="button"
                           className="small-btn danger"
                           data-action="delete"
-                          data-icon="✖"
+                          data-icon="X"
                           onClick={(event) => {
                             event.stopPropagation();
-                            setDeleteTarget(record);
+                            if (canDelete) {
+                              setDeleteTarget(record);
+                            }
                           }}
-                          disabled={submitting}
+                          disabled={submitting || !canDelete}
                         >
                           Delete
                         </button>
@@ -304,7 +308,7 @@ const WaxReceivePanel = ({ canCreateUpdate }) => {
           setBulkDeleteOpen(false);
           setDeleteError("");
         }}>
-          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+          <div className="modal-card delete-modal" onClick={(event) => event.stopPropagation()}>
             <h3>Confirm Delete</h3>
             <p>Are you sure you want to delete {selectedIds.length} records?</p>
             {deleteError && <p className="error">{deleteError}</p>}
