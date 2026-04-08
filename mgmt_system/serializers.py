@@ -114,15 +114,16 @@ class AuditLogSerializer(serializers.Serializer):
     actor_name = serializers.CharField(allow_null=True)
     actor_email = serializers.CharField(allow_null=True)
 
-
 class WaxReceiveLineSerializer(serializers.ModelSerializer):
     item_name = serializers.CharField(source="item.name", read_only=True)
     size_name = serializers.SerializerMethodField()
+
     size = serializers.PrimaryKeyRelatedField(
         queryset=Size_Model.objects.all(),
         required=False,
         allow_null=True,
     )
+
     image = serializers.ImageField(required=False, allow_null=True)
     is_active = serializers.BooleanField(required=False, default=True)
 
@@ -149,16 +150,15 @@ class WaxReceiveLineSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        request = self.context.get("request")
+
+        BASE_URL = "http://139.59.52.250:8080"  # ✅ your production base URL
+
         if instance.image:
-            if request:
-                data["image"] = request.build_absolute_uri(instance.image.url)
-            else:
-                data["image"] = instance.image.url
+            data["image"] = f"{BASE_URL}{instance.image.url}"
         else:
             data["image"] = None
+
         return data
-    
 
 class WaxReceiveSerializer(serializers.ModelSerializer):
     vendor_name = serializers.CharField(source="vendor.vendor_name", read_only=True)
