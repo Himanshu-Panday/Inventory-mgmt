@@ -47,6 +47,7 @@ const VendorItemCreatePage = () => {
   const { user, logout } = useAuth();
 
   const [profileOpen, setProfileOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const items = useSelector((state) => state.itemMaster.records);
 
@@ -147,7 +148,7 @@ const VendorItemCreatePage = () => {
 
   return (
     <div className="dashboard-shell">
-      <aside className="sidebar open">
+      <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
         <div className="sidebar-header">
           <span>Modules</span>
         </div>
@@ -169,8 +170,20 @@ const VendorItemCreatePage = () => {
         </nav>
       </aside>
 
-      <section className="dashboard-main" onClick={() => setProfileOpen(false)}>
+      <div className={`sidebar-backdrop ${sidebarOpen ? "show" : ""}`} onClick={() => setSidebarOpen(false)} />
+
+      <section className="dashboard-main" onClick={() => { setProfileOpen(false); setSidebarOpen(false); }}>
         <header className="topbar">
+          <button
+            type="button"
+            className="hamburger"
+            aria-label="Open sidebar"
+            onClick={(event) => { event.stopPropagation(); setSidebarOpen(true); }}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
           <div className="topbar-logo">
             <img src={rudraLogo} alt="Rudra Jewels" />
           </div>

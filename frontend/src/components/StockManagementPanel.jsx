@@ -192,12 +192,12 @@ const StockManagementPanel = () => {
                         </button>
                         <button
                           type="button"
-                          className="small-btn info"
-                          data-action="view"
-                          data-icon="⌕"
+                          className="ledger-btn"
+                          aria-label="Ledger"
+                          title="Ledger"
                           onClick={() => openViewModal(record)}
                         >
-                          View
+                          <span className="sr-only">Ledger</span>
                         </button>
                       </div>
                     </td>

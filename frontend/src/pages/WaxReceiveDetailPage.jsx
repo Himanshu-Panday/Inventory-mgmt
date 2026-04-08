@@ -56,6 +56,7 @@ const WaxReceiveDetailPage = () => {
   const { user, logout } = useAuth();
 
   const [profileOpen, setProfileOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const waxReceives = useSelector((state) => state.waxReceive.records);
   const [lines, setLines] = useState([]);
@@ -148,6 +149,18 @@ const WaxReceiveDetailPage = () => {
       .finally(() => setLoadingLines(false));
   }, [id]);
 
+  const refreshLines = async () => {
+    setLoadingLines(true);
+    try {
+      const rows = await listWaxReceiveLines(id);
+      setLines(rows);
+    } catch {
+      setLines([]);
+    } finally {
+      setLoadingLines(false);
+    }
+  };
+
   const record = useMemo(
     () => waxReceives.find((entry) => String(entry.id) === String(id)),
     [waxReceives, id],
@@ -203,11 +216,23 @@ const WaxReceiveDetailPage = () => {
     if (!canDelete) return;
     if (selectedIds.length === 0) return;
     setDeleting(true);
+    setDeleteError("");
     try {
-      await Promise.all(selectedIds.map((lineId) => deleteWaxReceiveLine(lineId)));
-      setLines((prev) => prev.filter((entry) => !selectedIds.includes(entry.id)));
-      setSelectedIds([]);
-      setBulkDeleteOpen(false);
+      const results = await Promise.allSettled(
+        selectedIds.map((lineId) => deleteWaxReceiveLine(lineId)),
+      );
+      const failedCount = results.filter((result) => result.status === "rejected").length;
+      const successCount = results.length - failedCount;
+
+      if (successCount > 0) {
+        await refreshLines();
+        setSelectedIds([]);
+        setBulkDeleteOpen(false);
+      }
+
+      if (failedCount === results.length) {
+        setDeleteError("Unable to delete wax receive lines.");
+      }
     } catch (requestError) {
       const apiMessage =
         requestError?.response?.data?.detail || "Unable to delete wax receive lines.";
@@ -545,7 +570,7 @@ const WaxReceiveDetailPage = () => {
 
   return (
     <div className="dashboard-shell">
-      <aside className="sidebar open">
+      <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
         <div className="sidebar-header">
           <span>Modules</span>
         </div>
@@ -567,8 +592,20 @@ const WaxReceiveDetailPage = () => {
         </nav>
       </aside>
 
-      <section className="dashboard-main" onClick={() => setProfileOpen(false)}>
+      <div className={`sidebar-backdrop ${sidebarOpen ? "show" : ""}`} onClick={() => setSidebarOpen(false)} />
+
+      <section className="dashboard-main" onClick={() => { setProfileOpen(false); setSidebarOpen(false); }}>
         <header className="topbar">
+          <button
+            type="button"
+            className="hamburger"
+            aria-label="Open sidebar"
+            onClick={(event) => { event.stopPropagation(); setSidebarOpen(true); }}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
           <div className="topbar-logo">
             <img src={rudraLogo} alt="Rudra Jewels" />
           </div>

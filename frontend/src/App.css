@@ -259,6 +259,29 @@ button:disabled {
   box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.08);
 }
 
+.sidebar-backdrop {
+  display: none;
+}
+
+.hamburger {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #1b2f5c;
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px;
+}
+
+.hamburger span {
+  display: block;
+  width: 100%;
+  height: 2px;
+  background: #ffffff;
+}
+
 .sidebar-header {
   display: flex;
   align-items: center;
@@ -1619,6 +1642,31 @@ button:disabled {
   background: #e4eaf2;
 }
 
+.ledger-btn {
+  margin: 0;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: none;
+  background: #11a69b;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.ledger-btn::before {
+  content: "";
+  width: 26px;
+  height: 26px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4z'/%3E%3Cpath d='M4 8h16'/%3E%3Cpath d='M8 12h8'/%3E%3Cpath d='M8 16h6'/%3E%3C/svg%3E") center/contain no-repeat;
+}
+
+.ledger-btn:hover {
+  background: #0e958b;
+}
+
 .user-modal {
   width: min(820px, 100%);
 }
@@ -1736,6 +1784,18 @@ button:disabled {
     transform: translateX(0);
   }
 
+  .hamburger {
+    display: flex;
+  }
+
+  .sidebar-backdrop.show {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(2, 13, 33, 0.42);
+    z-index: 25;
+  }
+
   .topbar h1 {
     font-size: 1rem;
   }
@@ -1748,24 +1808,52 @@ button:disabled {
   .add-btn {
     width: 100%;
   }
+
+  .dashboard-main {
+    overflow-x: auto;
+  }
+
+  .table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table-wrap::-webkit-scrollbar {
+    height: 10px;
+  }
+
+  .table-wrap::-webkit-scrollbar-track {
+    background: #e7edf6;
+    border-radius: 999px;
+  }
+
+  .table-wrap::-webkit-scrollbar-thumb {
+    background: #b9c6db;
+    border-radius: 999px;
+  }
+
+  .table-wrap::-webkit-scrollbar-thumb:hover {
+    background: #9fb1cc;
+  }
+
+  .records-table {
+    min-width: 900px;
+  }
 }
 
 @media (max-width: 720px) {
   .records-table {
-    min-width: 100%;
-    width: 100%;
-    table-layout: fixed;
+    min-width: 900px;
+    width: auto;
+    table-layout: auto;
   }
 
   .records-table th,
   .records-table td {
-    padding: 0.25rem 0.25rem;
-    font-size: 0.6rem;
-    line-height: 1.2;
+    padding: 0.45rem 0.6rem;
+    font-size: 0.75rem;
+    line-height: 1.3;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 0;
   }
 
   .action-group {
@@ -1855,4 +1943,28 @@ button:disabled {
 
 .deleted-actions .small-btn.info[data-action="recover"]::before {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 12a9 9 0 1 0 3-6.7'/%3E%3Cpath d='M3 3v6h6'/%3E%3Cpath d='M12 7v5l3 3'/%3E%3C/svg%3E");
+}
+
+.deleted-table input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  border: 1.5px solid #c5d0e0;
+  appearance: none;
+  display: inline-grid;
+  place-content: center;
+  background: #ffffff;
+}
+
+.deleted-table input[type="checkbox"]::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  transform: scale(0);
+  transition: transform 0.12s ease-in-out;
+  background: #1b3c73;
+}
+
+.deleted-table input[type="checkbox"]:checked::before {
+  transform: scale(1);
 }

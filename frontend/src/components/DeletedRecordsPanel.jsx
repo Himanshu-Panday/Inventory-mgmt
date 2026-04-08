@@ -94,6 +94,7 @@ const DeletedRecordsPanel = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [recoveringId, setRecoveringId] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
   const { visibleCount, sentinelRef } = useInfiniteScroll(records.length);
   const visibleRecords = records.slice(0, visibleCount);
 
@@ -107,6 +108,7 @@ const DeletedRecordsPanel = () => {
       .then((rows) => {
         const inactiveRows = rows.filter((record) => record.is_active !== true);
         setRecords(inactiveRows);
+        setSelectedIds([]);
       })
       .catch(() => setError("Unable to load deleted records."))
       .finally(() => setLoading(false));
@@ -126,6 +128,54 @@ const DeletedRecordsPanel = () => {
     }
   };
 
+  const toggleSelectAll = () => {
+    if (selectedIds.length === records.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(records.map((record) => record.id));
+    }
+  };
+
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((entry) => entry !== id) : [...prev, id],
+    );
+  };
+
+  const recoverSelected = async () => {
+    if (selectedIds.length === 0) return;
+    setRecoveringId("bulk");
+    try {
+      const targets = records.filter((record) => selectedIds.includes(record.id));
+      const recoveredIds = [];
+      const failedIds = [];
+      for (const record of targets) {
+        try {
+          await activeConfig.recover(record);
+          recoveredIds.push(record.id);
+        } catch {
+          failedIds.push(record.id);
+        }
+      }
+      const failedCount = failedIds.length;
+
+      if (failedCount > 0) {
+        setError(`Recovered ${recoveredIds.length} record(s). ${failedCount} failed.`);
+      }
+
+      if (recoveredIds.length > 0) {
+        setRecords((prev) => prev.filter((record) => !recoveredIds.includes(record.id)));
+      }
+      setSelectedIds(failedIds);
+    } catch (requestError) {
+      const apiMessage =
+        requestError?.response?.data?.detail || "Unable to recover selected records.";
+      setError(apiMessage);
+    } finally {
+      setRecoveringId(null);
+    }
+  };
+
   return (
     <div className="content-card vendor-panel deleted-panel">
       <div className="section-head vendor-head deleted-head">
@@ -133,6 +183,16 @@ const DeletedRecordsPanel = () => {
           <h2>Deleted Records</h2>
           <p>Recover inactive master records by category.</p>
         </div>
+        {selectedIds.length > 0 && (
+          <button
+            type="button"
+            className="action-btn add"
+            onClick={recoverSelected}
+            disabled={recoveringId === "bulk"}
+          >
+            {recoveringId === "bulk" ? "Recovering..." : `Recover (${selectedIds.length})`}
+          </button>
+        )}
       </div>
 
       <div className="tab-row deleted-tabs">
@@ -157,6 +217,13 @@ const DeletedRecordsPanel = () => {
           <table className="records-table">
             <thead>
               <tr>
+                <th>
+                  <input
+                    type="checkbox"
+                    checked={records.length > 0 && selectedIds.length === records.length}
+                    onChange={toggleSelectAll}
+                  />
+                </th>
                 <th>Record</th>
                 <th>Date & Time</th>
                 <th>Created By</th>
@@ -166,13 +233,20 @@ const DeletedRecordsPanel = () => {
             <tbody>
               {records.length === 0 ? (
                 <tr>
-                  <td colSpan="4" className="empty-row">
+                  <td colSpan="5" className="empty-row">
                     No inactive records found.
                   </td>
                 </tr>
               ) : (
                 visibleRecords.map((record) => (
                   <tr key={record.id}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(record.id)}
+                        onChange={() => toggleSelect(record.id)}
+                      />
+                    </td>
                     <td>{activeConfig.recordLabel(record)}</td>
                     <td>{formatDateTime(activeConfig.dateValue(record))}</td>
                     <td>{activeConfig.createdBy(record) || "-"}</td>
